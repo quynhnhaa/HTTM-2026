@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "status": "pass_with_metadata_caveat",
+  "dataset": "IMPTC",
+  "source": "official preprocessed data archive linked by upstream README",
+  "archive": {
+    "download_bytes": 2338748169,
+    "sha256": "30e779acf36122a52fd1fdfa1474c32ac9d51e5099512f8a7eaf7a0227e325be",
+    "note": "Archive size and split file sizes are exact."
+  },
+  "splits": {
+    "train": {
+      "path": "data/trajdata/ego/imptc/train/ego_samples.pkl",
+      "file_bytes": 522910756,
+      "sha256": "c0cc18426d1fb428820682a390d132184065b86a4a58a18b2254078a0feba1f0",
+      "sample_count": 189595,
+      "expected_sample_count": 189595,
+      "raw_x_shape": [189595, 32, 4],
+      "raw_y_shape": [189595, 48, 4],
+      "loader_y_shape": [189595, 48, 2],
+      "raw_dtype": "float64",
+      "nan_xy": 0,
+      "inf_xy": 0,
+      "last_observed_origin_mean_norm": 0.00007650735600266423,
+      "last_observed_origin_max_norm": 0.00014131117068893136,
+      "origin_count_within_1e-3": 189595,
+      "velocity_recompute_mae": 2.7138384603097915e-18,
+      "velocity_recompute_max_error": 8.881784197001252e-16,
+      "duplicate_exact_trajectories": 0,
+      "unique_source_values": 189595,
+      "underlying_track_tokens": 1306,
+      "movement_class_counts": {
+        "strong_left": 18641,
+        "light_left": 36649,
+        "straight": 41995,
+        "light_right": 36670,
+        "strong_right": 18093,
+        "standing": 37547
+      }
+    },
+    "eval": {
+      "path": "data/trajdata/ego/imptc/eval/ego_samples.pkl",
+      "file_bytes": 52763298,
+      "sha256": "a9377b87476ea230b97bd7ce333d1a36518842602af6e6c9cd0f594c2c8d1f4c",
+      "sample_count": 19148,
+      "expected_sample_count": 19148,
+      "raw_x_shape": [19148, 32, 4],
+      "raw_y_shape": [19148, 48, 4],
+      "loader_y_shape": [19148, 48, 2],
+      "raw_dtype": "float64",
+      "nan_xy": 0,
+      "inf_xy": 0,
+      "last_observed_origin_mean_norm": 0.00007636045458998053,
+      "last_observed_origin_max_norm": 0.0001408269432844924,
+      "origin_count_within_1e-3": 19148,
+      "velocity_recompute_mae": 2.959917498069565e-18,
+      "velocity_recompute_max_error": 4.440892098500626e-16,
+      "duplicate_exact_trajectories": 0,
+      "unique_source_values": 19148,
+      "underlying_track_tokens": 155,
+      "movement_class_counts": {
+        "straight": 4888,
+        "light_left": 4201,
+        "light_right": 3945,
+        "strong_left": 1858,
+        "strong_right": 1515,
+        "standing": 2741
+      }
+    },
+    "test": {
+      "path": "data/trajdata/ego/imptc/test/ego_samples.pkl",
+      "file_bytes": 156259575,
+      "sha256": "75aa900e762a0ce33b052a798db94caefd0abae2830203c72c76fb4076a41b12",
+      "sample_count": 56694,
+      "expected_sample_count": 56694,
+      "raw_x_shape": [56694, 32, 4],
+      "raw_y_shape": [56694, 48, 4],
+      "loader_y_shape": [56694, 48, 2],
+      "raw_dtype": "float64",
+      "nan_xy": 0,
+      "inf_xy": 0,
+      "last_observed_origin_mean_norm": 0.00007679321459832119,
+      "last_observed_origin_max_norm": 0.00014111014887993218,
+      "origin_count_within_1e-3": 56694,
+      "velocity_recompute_mae": 2.9842343661234623e-18,
+      "velocity_recompute_max_error": 8.881784197001252e-16,
+      "duplicate_exact_trajectories": 0,
+      "unique_source_values": 56694,
+      "underlying_track_tokens": 420,
+      "movement_class_counts": {
+        "straight": 13311,
+        "light_left": 11356,
+        "strong_left": 5612,
+        "light_right": 11602,
+        "standing": 9073,
+        "strong_right": 5740
+      }
+    }
+  },
+  "sample_fields": [
+    "X",
+    "avg_velocity",
+    "class",
+    "id",
+    "movement_class",
+    "reference_position",
+    "rotation_angle",
+    "shift",
+    "source",
+    "y"
+  ],
+  "cross_split": {
+    "exact_trajectory_overlap": {
+      "train_eval": 0,
+      "train_test": 0,
+      "eval_test": 0
+    },
+    "source_string_overlap": {
+      "train_eval": 2734,
+      "train_test": 5661,
+      "eval_test": 2032
+    },
+    "track_token_name_overlap": {
+      "train_eval": 65,
+      "train_test": 123,
+      "eval_test": 48
+    },
+    "interpretation": "Source and track-like tokens are reused across split namespaces and cannot independently prove leakage. Exact X+y trajectory overlap is zero. Raw sequence identity is not included, so sequence-level leakage cannot be conclusively audited from these pickle files alone."
+  },
+  "loader_check": {
+    "status": "pass",
+    "eval_shapes": {
+      "X": [19148, 32, 4],
+      "y": [19148, 48, 2],
+      "reference_position": [19148, 1, 2],
+      "rotation_angle": [19148],
+      "source": [19148]
+    },
+    "note": "The repository loader intentionally discards the two velocity columns in raw y and trains against future x,y only."
+  },
+  "conclusion": "The official preprocessed IMPTC files are structurally valid and ready for pipeline smoke testing. Full training remains blocked by the planned logging/checkpoint/fixed-sample implementation and review."
+}

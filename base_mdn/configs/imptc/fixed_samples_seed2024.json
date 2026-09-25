@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "split": "eval",
+  "selection_method": "numpy_default_rng_without_replacement",
+  "selection_seed": 2024,
+  "dataset_sha256": "a9377b87476ea230b97bd7ce333d1a36518842602af6e6c9cd0f594c2c8d1f4c",
+  "samples": [
+    {"slot": 0, "pickle_key": 1767, "sample_id": "eval:imptc_0_00047_00310:1767", "source": "imptc_0_00047_00310", "movement_class": "light_left", "x_sha256": "9b6ec968d932cff38878f65b4f039ca82bab18f5b12ff7ae71d189f5fa7623be", "y_sha256": "30d7bfe50fecd3bae89fd4e6982e7ff3fdb28fe81e57db65bf389b9d015f8407"},
+    {"slot": 1, "pickle_key": 4103, "sample_id": "eval:imptc_0_00093_00225:4103", "source": "imptc_0_00093_00225", "movement_class": "strong_right", "x_sha256": "10cc8db1f4ddaed79997811625e82a6c84f1da3a9b64dd354ba3ad69634e08e2", "y_sha256": "f72b9d517d3d0df15fccc4320b3264be3363acf944af7a89ecf0693a68d6714d"},
+    {"slot": 2, "pickle_key": 4623, "sample_id": "eval:imptc_0_00095_00027:4623", "source": "imptc_0_00095_00027", "movement_class": "light_right", "x_sha256": "957bfd11089cd9ecdd802447c2f80bdd9a94de7f06f9181208dc8465f60a27d4", "y_sha256": "6f07ec8d5e3ff5d11a57434bdd2ca880178e7a9e43cf718fc6582e45c88a5f18"},
+    {"slot": 3, "pickle_key": 5924, "sample_id": "eval:imptc_0_00138_00279:5924", "source": "imptc_0_00138_00279", "movement_class": "straight", "x_sha256": "c8f1f77be7c55e08fae62afc32876a7f6e35552af79d284eacbb289e4da21057", "y_sha256": "71adb733bda0b40631f132d78694dfcb378bb923c3ba26286acb31ac2c21588b"},
+    {"slot": 4, "pickle_key": 6081, "sample_id": "eval:imptc_0_00152_00070:6081", "source": "imptc_0_00152_00070", "movement_class": "light_left", "x_sha256": "6573e5e09eff4e6f587546945f7e77b92038e3ec3334d0f411156737d670f96c", "y_sha256": "9e50f405855ce8965d99d49060ab79378e0c025ab67835bd80787f9f86e37b4d"},
+    {"slot": 5, "pickle_key": 12936, "sample_id": "eval:imptc_0_00263_00234:12936", "source": "imptc_0_00263_00234", "movement_class": "standing", "x_sha256": "30ee74e77ae9f4637bfa3bbc90bb39d3b1a52f61329c2dce5b621f4a81e3000f", "y_sha256": "98077eaaa4dad4e19c8c1ace7798ae4fa4415c24e7601605bf90a25ad28db222"},
+    {"slot": 6, "pickle_key": 15308, "sample_id": "eval:imptc_0_00323_00188:15308", "source": "imptc_0_00323_00188", "movement_class": "standing", "x_sha256": "cebfff3be8011bd239eba3a5de3598e2846a44648b5ecc0f2247166ce280a0a5", "y_sha256": "7408cc81d60b72517ceb2936ea16acf5393df12da67c88faf954768f2d95568b"},
+    {"slot": 7, "pickle_key": 17398, "sample_id": "eval:imptc_0_00361_00094:17398", "source": "imptc_0_00361_00094", "movement_class": "light_right", "x_sha256": "2f3cd12afa97f8641e9d971e7161e0934c8a15e2e5913ba9b6bb3aa54a226f6e", "y_sha256": "93d51bddc5e9eb71cf7c2f9a8e3f84a696553d1bdedabf000834b82ee13203cb"}
+  ]
+}
