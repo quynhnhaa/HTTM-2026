@@ -204,3 +204,24 @@ results/comparisons/imptc_m1_vs_m3/
 ```
 
 Có thể dùng `--m1-run`, `--m3-run` và `--output-dir` để chọn artifact khác.
+
+## 9. Tạo Demo 2 — uncertainty theo forecast horizon
+
+Script chỉ đọc prediction thật đã lưu tại `best.pt` của 8 fixed samples, không
+train hoặc chạy model lại:
+
+```bash
+.venv/bin/python base_mdn/create_demo2_horizon_uncertainty.py
+```
+
+Mặc định script vẽ bốn mốc `+1.0`, `+2.0`, `+3.0`, `+4.8` giây, dùng toàn bộ
+GMM `M=3`, vùng 68%/95% theo đúng Monte Carlo confidence-set implementation và
+lưu PNG/PDF/SVG cùng bảng diện tích tại:
+
+```text
+results/trained_models/base_mdn/imptc/default_peds_imptc/
+runs/imptc_baseline_seed2024/figures/demo2/
+```
+
+Trên từng panel, `A68(t)`/`A95(t)` là diện tích của sample và horizon đang vẽ,
+không phải global sharpness score `S68`/`S95`.

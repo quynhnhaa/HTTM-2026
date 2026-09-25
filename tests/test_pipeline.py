@@ -17,6 +17,7 @@ from utils.data_loader import DataLoader
 from utils.experiment import capture_rng_state, restore_rng_state, set_global_seed
 from utils.mdn_distribution import build_mdn_distribution, decode_mdn_output
 from testing import resolve_test_checkpoint
+from create_demo2_horizon_uncertainty import time_indices, region_area
 
 
 class TestMDNPipeline(unittest.TestCase):
@@ -196,6 +197,19 @@ class TestCheckpointSelection(unittest.TestCase):
             with self.assertRaisesRegex(FileNotFoundError, 'No run-level best.pt'):
                 resolve_test_checkpoint(cfg)
 
+
+class TestDemo2Helpers(unittest.TestCase):
+    def test_time_indices_respect_dataset_sampling(self):
+        self.assertEqual(time_indices([1.0, 2.0, 3.0, 4.8], 0.1, 48), [9, 19, 29, 47])
+
+    def test_time_indices_reject_misaligned_time(self):
+        with self.assertRaisesRegex(ValueError, 'not aligned'):
+            time_indices([1.05, 2.0, 3.0, 4.8], 0.1, 48)
+
+    def test_region_area_uses_full_mesh_area(self):
+        confidence = np.asarray([[0.2, 0.7], [0.9, 1.0]])
+        self.assertEqual(region_area(confidence, 0.68, 16.0), 4.0)
+        self.assertEqual(region_area(confidence, 0.95, 16.0), 12.0)
 
 if __name__ == '__main__':
     unittest.main()
