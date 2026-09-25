@@ -1,6 +1,7 @@
 import os
 import torch
 import logging
+from pathlib import Path
 
 from base_lstm import LSTM_Trajectory_Forecast
 from eval import MDN_Forecaster
@@ -8,6 +9,49 @@ from utils.config_loader import ConfigLoader
 from utils.helper import config_parser, count_model_parameters
 from utils.data_loader import DataLoader
 from termcolor import colored
+
+
+def resolve_test_checkpoint(cfg, checkpoint=None, run_id=None):
+    """Resolve a test checkpoint, defaulting to the validation-best model.
+
+    Resolution order:
+    1. Explicit ``--checkpoint`` or ``MDN_TEST_CHECKPOINT``.
+    2. ``best.pt`` from ``--run-id`` or ``MDN_RUN_ID``.
+    3. The only available run-level ``best.pt`` for this configuration.
+
+    Ambiguous run discovery is rejected so testing never silently evaluates the
+    wrong experiment. Legacy ``model_final.pt`` remains usable only by passing
+    its path explicitly.
+    """
+    explicit = checkpoint or os.environ.get('MDN_TEST_CHECKPOINT')
+    if explicit:
+        path = Path(explicit).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f'Explicit test checkpoint does not exist: {path}')
+        return path
+
+    selected_run = run_id or os.environ.get('MDN_RUN_ID')
+    runs_dir = Path(cfg.result_path) / 'runs'
+    if selected_run:
+        path = runs_dir / selected_run / 'checkpoints' / 'best.pt'
+        if not path.is_file():
+            raise FileNotFoundError(
+                f'Validation-best checkpoint does not exist for run {selected_run!r}: {path}'
+            )
+        return path.resolve()
+
+    candidates = sorted(runs_dir.glob('*/checkpoints/best.pt'))
+    if len(candidates) == 1:
+        return candidates[0].resolve()
+    if not candidates:
+        raise FileNotFoundError(
+            f'No run-level best.pt found under {runs_dir}. '
+            'Pass --checkpoint explicitly for a legacy or final checkpoint.'
+        )
+    run_names = ', '.join(path.parent.parent.name for path in candidates)
+    raise RuntimeError(
+        f'Multiple runs contain best.pt ({run_names}). Pass --run-id to select one.'
+    )
 
 
 def testing(args, gpu_id):
@@ -75,15 +119,25 @@ def testing(args, gpu_id):
             log_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
             test_logger.addHandler(log_file_handler)
         
-        # load a trained model
+        # Load the validation-best model by default. A final or legacy
+        # checkpoint must be requested explicitly with --checkpoint.
+        checkpoint_path = resolve_test_checkpoint(
+            cfg, checkpoint=args.checkpoint, run_id=args.run_id
+        )
+        checkpoint = torch.load(f=checkpoint_path, map_location=device)
+        saved_model_params = checkpoint.get('resolved_config', {}).get('model_params')
+        if saved_model_params is not None and saved_model_params != cfg.model_params:
+            raise ValueError(
+                f'Checkpoint model_params do not match active config: {checkpoint_path}'
+            )
         model = LSTM_Trajectory_Forecast(cfg=cfg.model_params)
-        model.load_state_dict(torch.load(f=os.path.join(cfg.checkpoint_path, "model_final.pt"), map_location=device)["model"])
+        model.load_state_dict(checkpoint["model"])
         
         # create eval forecaster
         eval_forecaster = MDN_Forecaster(cfg=cfg, model=model, data_loader=data_loader, type='testing', device=device, logger=test_logger)
         
-        if cfg.with_print: print(colored(f"Start testing for: \n - config: {cfg.name} \n - target: {cfg.target} \n - model_arch: {cfg.model_arch} \n - model parameters: {count_model_parameters(model=model)}", 'green'))
-        if cfg.with_log: test_logger.info(f"Start testing for: \n - config: {cfg.name} \n - target: {cfg.target} \n - model_arch: {cfg.model_arch} \n - model parameters: {count_model_parameters(model=model)}")
+        if cfg.with_print: print(colored(f"Start testing for: \n - config: {cfg.name} \n - target: {cfg.target} \n - model_arch: {cfg.model_arch} \n - checkpoint: {checkpoint_path} \n - model parameters: {count_model_parameters(model=model)}", 'green'))
+        if cfg.with_log: test_logger.info(f"Start testing for: \n - config: {cfg.name} \n - target: {cfg.target} \n - model_arch: {cfg.model_arch} \n - checkpoint: {checkpoint_path} \n - model parameters: {count_model_parameters(model=model)}")
         
         # Run evaluation tasks
         eval_forecaster.evaluate(epoch=None)

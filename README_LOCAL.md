@@ -57,6 +57,20 @@ python base_mdn/train.py --target imptc --configs default_peds_imptc.json --gpu 
 python base_mdn/testing.py --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
 ```
 
+Khi test, pipeline mặc định dùng checkpoint `best.pt` được chọn theo validation
+NLL. Nếu config chỉ có một run thì run đó được nhận diện tự động. Khi có nhiều
+run, chỉ rõ run để tránh chọn nhầm:
+
+```bash
+.venv/bin/python base_mdn/testing.py \
+  --target imptc --configs default_peds_imptc.json --gpu 0 \
+  --run-id imptc_baseline_seed2024 --log --print
+```
+
+Chỉ dùng `--checkpoint /duong/dan/checkpoint.pt` khi chủ động muốn đánh giá một
+checkpoint khác như `final.pt` hoặc checkpoint legacy. Giá trị này ghi đè
+`--run-id` và `MDN_RUN_ID`.
+
 Trước khi train, cần đặt đủ các file `ego_samples.pkl` đúng cấu trúc hoặc khai báo `MDN_DATA_ROOT`.
 
 ## 4. Kiểm chứng trước khi train baseline
@@ -167,3 +181,26 @@ Xem toàn bộ tùy chọn:
 ```bash
 .venv/bin/python base_mdn/visualize_experiment.py --help
 ```
+
+## 8. So sánh validation-best M=1 và M=3
+
+Sau khi cả hai run hoàn tất, đánh giá hai `best.pt` trên toàn bộ IMPTC test set:
+
+```bash
+.venv/bin/python base_mdn/compare_m1_m3.py --gpu 0
+```
+
+Script xác minh hai resolved config chỉ khác `model_params.num_gaussians`, đặt
+lại cùng evaluation seed trước mỗi model và lưu kết quả tại:
+
+```text
+results/comparisons/imptc_m1_vs_m3/
+├── comparison.json
+├── comparison.csv
+├── config_difference.json
+├── metric_comparison.png
+├── m1/
+└── m3/
+```
+
+Có thể dùng `--m1-run`, `--m3-run` và `--output-dir` để chọn artifact khác.

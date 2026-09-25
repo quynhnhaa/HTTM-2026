@@ -13,6 +13,10 @@ def config_parser():
     p.add_argument('-l', '--log', action='store_true')
     p.add_argument('-p', '--print', action='store_true')
     p.add_argument('-g', '--gpu', type=str, default='0')
+    p.add_argument('--run-id', type=str, default=None,
+                   help='Experiment run ID. Testing defaults to this run\'s best.pt checkpoint.')
+    p.add_argument('--checkpoint', type=str, default=None,
+                   help='Explicit checkpoint path for testing; overrides --run-id and MDN_RUN_ID.')
     p.set_defaults(log=True)
     p.set_defaults(print=True)
     

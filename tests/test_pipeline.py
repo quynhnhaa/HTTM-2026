@@ -1,6 +1,10 @@
 import sys
+import os
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -12,6 +16,7 @@ from base_lstm import LSTM_Trajectory_Forecast, NLL_MDN_loss
 from utils.data_loader import DataLoader
 from utils.experiment import capture_rng_state, restore_rng_state, set_global_seed
 from utils.mdn_distribution import build_mdn_distribution, decode_mdn_output
+from testing import resolve_test_checkpoint
 
 
 class TestMDNPipeline(unittest.TestCase):
@@ -38,6 +43,20 @@ class TestMDNPipeline(unittest.TestCase):
         raw = torch.randn(2, 6, 18)
         pi = decode_mdn_output(raw, 3)['pi']
         self.assertTrue(torch.allclose(pi.sum(dim=-1), torch.ones(2, 6), atol=1e-6))
+
+    def test_single_gaussian_shapes_and_unit_weight(self):
+        cfg = dict(self.cfg, num_gaussians=1)
+        model = LSTM_Trajectory_Forecast(cfg)
+        raw = model(torch.randn(2, 32, 4))
+        decoded = decode_mdn_output(raw, 1)
+        self.assertEqual(tuple(raw.shape), (2, 48, 6))
+        self.assertEqual(tuple(decoded['pi'].shape), (2, 48, 1))
+        self.assertEqual(tuple(decoded['mu'].shape), (2, 48, 1, 2))
+        self.assertEqual(tuple(decoded['covariance'].shape), (2, 48, 1, 2, 2))
+        self.assertTrue(torch.allclose(decoded['pi'], torch.ones_like(decoded['pi'])))
+        loss, diverged = NLL_MDN_loss(raw, torch.randn(2, 48, 2), 1)
+        self.assertFalse(diverged)
+        self.assertTrue(torch.isfinite(loss))
 
     def test_training_and_evaluation_share_distribution(self):
         raw = torch.randn(2, 48, 18)
@@ -123,6 +142,59 @@ class TestMDNPipeline(unittest.TestCase):
         loss, _ = NLL_MDN_loss(output, torch.randn(2, 48, 2, device='cuda'), 3)
         loss.backward()
         gpu_optimizer.step()
+
+
+class TestCheckpointSelection(unittest.TestCase):
+    def _cfg(self, root):
+        return SimpleNamespace(result_path=str(Path(root) / 'model_results'))
+
+    @staticmethod
+    def _touch_best(cfg, run_id):
+        path = Path(cfg.result_path) / 'runs' / run_id / 'checkpoints' / 'best.pt'
+        path.parent.mkdir(parents=True)
+        path.touch()
+        return path.resolve()
+
+    def test_defaults_to_only_run_best_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            cfg = self._cfg(tmp)
+            expected = self._touch_best(cfg, 'baseline')
+            self.assertEqual(resolve_test_checkpoint(cfg), expected)
+
+    def test_run_id_selects_its_best_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            cfg = self._cfg(tmp)
+            self._touch_best(cfg, 'run_a')
+            expected = self._touch_best(cfg, 'run_b')
+            self.assertEqual(resolve_test_checkpoint(cfg, run_id='run_b'), expected)
+
+    def test_explicit_checkpoint_overrides_run(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            cfg = self._cfg(tmp)
+            self._touch_best(cfg, 'run_a')
+            explicit = Path(tmp) / 'final.pt'
+            explicit.touch()
+            self.assertEqual(
+                resolve_test_checkpoint(cfg, checkpoint=str(explicit), run_id='run_a'),
+                explicit.resolve(),
+            )
+
+    def test_multiple_runs_require_explicit_run_id(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            cfg = self._cfg(tmp)
+            self._touch_best(cfg, 'run_a')
+            self._touch_best(cfg, 'run_b')
+            with self.assertRaisesRegex(RuntimeError, 'Multiple runs'):
+                resolve_test_checkpoint(cfg)
+
+    def test_does_not_silently_fall_back_to_legacy_final(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            cfg = self._cfg(tmp)
+            legacy = Path(cfg.result_path) / 'checkpoints' / 'model_final.pt'
+            legacy.parent.mkdir(parents=True)
+            legacy.touch()
+            with self.assertRaisesRegex(FileNotFoundError, 'No run-level best.pt'):
+                resolve_test_checkpoint(cfg)
 
 
 if __name__ == '__main__':
