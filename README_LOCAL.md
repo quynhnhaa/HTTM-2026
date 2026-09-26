@@ -225,3 +225,101 @@ runs/imptc_baseline_seed2024/figures/demo2/
 
 Trên từng panel, `A68(t)`/`A95(t)` là diện tích của sample và horizon đang vẽ,
 không phải global sharpness score `S68`/`S95`.
+
+## 10. Tạo Demo 1 — M=1 so với M=3 trên cùng một mẫu
+
+Mục 8 cho ra **số** (biểu đồ cột metric). Demo 1 cho ra **lập luận nhìn thấy được**:
+một Gaussian phải kéo dài một ellipse phủ qua khoảng trống giữa hai nhánh, trong
+khi hỗn hợp đặt được mass lên từng nhánh và **để trống khoảng giữa**.
+
+Script chỉ đọc prediction đã lưu tại `best.pt` của 8 fixed samples, không train
+hay chạy lại model:
+
+```bash
+.venv/bin/python base_mdn/create_demo1_m1_vs_m3.py
+```
+
+Cách chọn mẫu theo đúng `EXPERIMENT_PROTOCOL.md` mục 15.2 (difficult/uncertain
+case), **không chọn bằng mắt**:
+
+- mixture entropy cao → `perplexity = exp(H)`;
+- ít nhất **hai** thành phần có trọng số `>= --min-weight` (mặc định 0.15);
+- các thành phần **tách nhau hơn 2 sigma** — đây là ngưỡng để hỗn hợp hai
+  Gaussian trọng số bằng nhau thực sự có hai đỉnh, nên nó là điều kiện cứng
+  chứ không phải một số hạng mềm.
+
+Toàn bộ bảng điểm per-sample được ghi ra đĩa để lựa chọn tái tạo được.
+
+Tuỳ chọn hay dùng:
+
+```bash
+.venv/bin/python base_mdn/create_demo1_m1_vs_m3.py \
+  --sample-id <id> \        # ép một mẫu cụ thể
+  --time 3.0 \              # cố định mốc thời gian, mặc định quét cả horizon
+  --min-weight 0.10         # nới ngưỡng nếu không mẫu nào đạt
+```
+
+Kết quả tại `results/comparisons/imptc_m1_vs_m3/demo1/`:
+
+```text
+demo1_m1_vs_m3.{png,pdf,svg}
+demo1_selection.json      # tiêu chí, mẫu được chọn, A68/A95, tỉ lệ A95 M1/M3
+demo1_candidates.csv      # điểm của cả 8 mẫu
+```
+
+Hai panel dùng **cùng giới hạn trục** và **cùng seed Monte Carlo**, nếu không thì
+chênh lệch diện tích không đọc được từ hình và có thể do nhiễu lấy mẫu.
+
+Script cảnh báo khi:
+
+- không mẫu nào đạt tiêu chí → dừng kèm hướng dẫn, thay vì vẽ hai panel giống nhau;
+- vùng tin cậy **chạm biên mesh** → diện tích báo cáo chỉ là chặn dưới;
+- `A95(M=1) / A95(M=3) < 1.05` → hình sẽ không thuyết phục, nên đổi mẫu.
+
+## 11. Ablation số thành phần hỗn hợp M
+
+Paper viết `we set the number of Gaussians to three` cho mọi dataset, nhưng config
+chính thức dùng `M=3` cho IMPTC và `M=5` cho ETH/UCY, và **không báo cáo ablation
+nào**. Mục này đo đúng đại lượng đó.
+
+Các config `m2`, `m5`, `m8` chỉ khác `default_peds_imptc.json` ở `num_gaussians`.
+
+Train ba giá trị còn thiếu (`M=1` và `M=3` đã có từ mục 5 và 8):
+
+```bash
+MDN_RUN_ID=imptc_m2_seed2024 .venv/bin/python base_mdn/train.py \
+  --target imptc --configs m2_peds_imptc.json --gpu 0 --log --print
+MDN_RUN_ID=imptc_m5_seed2024 .venv/bin/python base_mdn/train.py \
+  --target imptc --configs m5_peds_imptc.json --gpu 0 --log --print
+MDN_RUN_ID=imptc_m8_seed2024 .venv/bin/python base_mdn/train.py \
+  --target imptc --configs m8_peds_imptc.json --gpu 0 --log --print
+```
+
+Đánh giá toàn bộ sweep và vẽ đường cong:
+
+```bash
+.venv/bin/python base_mdn/run_m_ablation.py --gpu 0
+```
+
+Script xác minh mọi run **chỉ khác `num_gaussians`** trước khi so sánh, đặt lại
+cùng evaluation seed trước mỗi model, và lưu tại
+`results/ablations/imptc_num_gaussians/`:
+
+```text
+num_gaussians_ablation.{png,pdf,svg}
+ablation.json
+ablation.csv
+```
+
+Vẽ đường cong một phần khi chưa train đủ:
+
+```bash
+.venv/bin/python base_mdn/run_m_ablation.py --gpu 0 --only 1 3 --skip-missing
+```
+
+Hình gồm hai tầng: trên là `R_avg`/`R_min` kèm hai ngưỡng 95% và 90% và vạch đánh
+dấu `M=3` của config chính thức; dưới là `S95` và `minADE20` để thấy đánh đổi khi
+tăng `M`.
+
+Mỗi cấu hình chỉ chạy **một seed**, nên đọc **xu hướng** chứ không đọc con số
+tuyệt đối. Nếu còn thời gian, chạy thêm seed rồi lấy trung bình.

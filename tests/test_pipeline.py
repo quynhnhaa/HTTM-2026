@@ -18,6 +18,9 @@ from utils.experiment import capture_rng_state, restore_rng_state, set_global_se
 from utils.mdn_distribution import build_mdn_distribution, decode_mdn_output
 from testing import resolve_test_checkpoint
 from create_demo2_horizon_uncertainty import time_indices, region_area
+from create_demo1_m1_vs_m3 import (
+    choose_candidate, component_sigma, multimodality_score, require_matching_runs,
+)
 
 
 class TestMDNPipeline(unittest.TestCase):
@@ -210,6 +213,80 @@ class TestDemo2Helpers(unittest.TestCase):
         confidence = np.asarray([[0.2, 0.7], [0.9, 1.0]])
         self.assertEqual(region_area(confidence, 0.68, 16.0), 4.0)
         self.assertEqual(region_area(confidence, 0.95, 16.0), 12.0)
+
+class TestDemo1Selection(unittest.TestCase):
+    """Sample selection must follow EXPERIMENT_PROTOCOL.md 15.2, not the eye."""
+
+    @staticmethod
+    def _covariance(sigma):
+        return np.asarray([[sigma ** 2, 0.0], [0.0, sigma ** 2]], dtype=np.float64)
+
+    def test_component_sigma_averages_the_diagonal(self):
+        covariance = np.asarray([[4.0, 0.0], [0.0, 16.0]])
+        self.assertAlmostEqual(component_sigma(covariance), np.sqrt(10.0))
+
+    def test_separated_balanced_mixture_qualifies(self):
+        pi = np.asarray([0.45, 0.40, 0.15])
+        mu = np.asarray([[-3.0, 0.0], [3.0, 0.0], [0.0, 0.2]])
+        covariance = np.stack([self._covariance(0.5)] * 3)
+        stats = multimodality_score(pi, mu, covariance, min_weight=0.15)
+        self.assertTrue(stats['qualified'])
+        self.assertEqual(stats['significant_components'], 3)
+        self.assertGreater(stats['max_separation_sigma'], 2.0)
+        self.assertGreater(stats['score'], 0.0)
+
+    def test_overlapping_components_do_not_qualify(self):
+        """Three components stacked on one spot are not multimodal."""
+        pi = np.asarray([0.34, 0.33, 0.33])
+        mu = np.asarray([[0.0, 0.0], [0.05, 0.0], [0.0, 0.05]])
+        covariance = np.stack([self._covariance(1.0)] * 3)
+        stats = multimodality_score(pi, mu, covariance, min_weight=0.15)
+        self.assertFalse(stats['qualified'])
+        self.assertEqual(stats['score'], 0.0)
+
+    def test_single_dominant_component_does_not_qualify(self):
+        pi = np.asarray([0.96, 0.02, 0.02])
+        mu = np.asarray([[0.0, 0.0], [5.0, 0.0], [-5.0, 0.0]])
+        covariance = np.stack([self._covariance(0.5)] * 3)
+        stats = multimodality_score(pi, mu, covariance, min_weight=0.15)
+        self.assertFalse(stats['qualified'])
+        self.assertEqual(stats['significant_components'], 1)
+
+    def test_choose_candidate_refuses_when_nothing_qualifies(self):
+        rows = [{'sample_id': 'a', 'score': 0.0}, {'sample_id': 'b', 'score': 0.0}]
+        with self.assertRaises(SystemExit):
+            choose_candidate(rows, None, None)
+
+    def test_choose_candidate_honours_explicit_sample_id(self):
+        rows = [{'sample_id': 'a', 'score': 9.0}, {'sample_id': 'b', 'score': 1.0}]
+        selected, reason = choose_candidate(rows, 'b', None)
+        self.assertEqual(selected['sample_id'], 'b')
+        self.assertIn('explicit', reason)
+
+    def test_runs_differing_beyond_num_gaussians_are_rejected(self):
+        inputs = {
+            'sample_ids': np.asarray(['s0']),
+            'X': np.zeros((1, 32, 4)),
+            'y': np.zeros((1, 48, 2)),
+        }
+        m1 = (Path('m1'), {'model_params': {'num_gaussians': 1, 'lstm_hidden_size': 8}},
+              inputs, None)
+        m3 = (Path('m3'), {'model_params': {'num_gaussians': 3, 'lstm_hidden_size': 16}},
+              inputs, None)
+        with self.assertRaisesRegex(ValueError, 'beyond num_gaussians'):
+            require_matching_runs(m1, m3)
+
+    def test_runs_with_different_fixed_samples_are_rejected(self):
+        params = {'model_params': {'num_gaussians': 1}}
+        other = {'model_params': {'num_gaussians': 3}}
+        left = {'sample_ids': np.asarray(['s0']), 'X': np.zeros((1, 32, 4)),
+                'y': np.zeros((1, 48, 2))}
+        right = {'sample_ids': np.asarray(['s9']), 'X': np.zeros((1, 32, 4)),
+                 'y': np.zeros((1, 48, 2))}
+        with self.assertRaisesRegex(ValueError, 'same fixed samples'):
+            require_matching_runs((Path('a'), params, left, None),
+                                  (Path('b'), other, right, None))
+
 
 if __name__ == '__main__':
     unittest.main()
