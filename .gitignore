@@ -3,3 +3,6 @@ __pycache__/
 *.py[cod]
 results/
 data/
+slides/
+Reliable Probabilistic Human Trajectory Prediction for Autonomous Applications.pptx
+.DS_Store
