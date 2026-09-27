@@ -335,3 +335,23 @@ tăng `M`.
 
 Mỗi cấu hình chỉ chạy **một seed**, nên đọc **xu hướng** chứ không đọc con số
 tuyệt đối. Nếu còn thời gian, chạy thêm seed rồi lấy trung bình.
+## 12. Tạo Demo 3 — calibration plot
+
+Script dùng `best.pt` của baseline IMPTC `M=3`, chạy đúng confidence-level
+Monte Carlo của repository trên toàn bộ test set và không train lại model:
+
+```bash
+.venv/bin/python base_mdn/create_demo3_calibration.py --gpu 0
+```
+
+Kết quả được lưu trong `figures/demo3/` của run baseline, gồm PNG/PDF/SVG,
+confidence levels, hai CSV, `summary.json` và `demo3_notes.md`. Các đường biểu
+diễn các horizon `+0.8s` đến `+4.8s`; hình ghi `Ravg` và `Rmin` theo đúng cách
+binning của evaluator gốc.
+
+Chỉ để smoke test kỹ thuật, không dùng kết quả này trên slide:
+
+```bash
+.venv/bin/python base_mdn/create_demo3_calibration.py \
+  --max-test-samples 64 --output-dir /tmp/demo3-smoke
+```
