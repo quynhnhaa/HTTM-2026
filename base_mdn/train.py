@@ -110,7 +110,21 @@ def training(cfg, gpu_id):
     #--- start training
     # build trainer
     trainer = MDN_Trainer(cfg=cfg, model=model, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, device=device, epoch=epoch, loss_hist=history, logger=train_logger, tracker=tracker)
-    final_epoch, history = trainer.train(data_loader=data_loader)
+    final_epoch, history, diverged = trainer.train(data_loader=data_loader)
+
+    if diverged:
+        tracker.diverged(final_epoch + 1, final_epoch)
+        message = (
+            f'Training diverged during epoch {final_epoch + 1}. '
+            f'Preserved last.pt at epoch {final_epoch} and best.pt at epoch '
+            f'{tracker.best_epoch}; no final.pt was created.'
+        )
+        if cfg.with_print: print(colored(message, 'red'))
+        if cfg.with_log: train_logger.error(message)
+        if cfg.with_log:
+            log_file_handler.close()
+            train_logger.removeHandler(log_file_handler)
+        return {'status': 'diverged', 'last_completed_epoch': final_epoch}
     
     # Save final model
     trainer.save(epoch=final_epoch, diverged=False, final=True)
@@ -129,7 +143,7 @@ def training(cfg, gpu_id):
         
         
     print(colored(f"Finished training: {cfg.name} on GPU: {gpu_id}", 'cyan'))
-    return
+    return {'status': 'completed', 'final_epoch': final_epoch}
     
     
 if __name__ == "__main__":

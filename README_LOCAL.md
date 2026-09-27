@@ -225,3 +225,50 @@ runs/imptc_baseline_seed2024/figures/demo2/
 
 Trên từng panel, `A68(t)`/`A95(t)` là diện tích của sample và horizon đang vẽ,
 không phải global sharpness score `S68`/`S95`.
+
+## 10. ETH/UCY ablation với M = 1, 2, 3, 5, 8
+
+Thí nghiệm gồm 25 run: 5 giá trị `M` nhân với 5 fold LOO. Mỗi run giữ nguyên
+config repository của fold tương ứng và chỉ đổi `model_params.num_gaussians`.
+Kiểm tra ma trận thí nghiệm trước khi chạy:
+
+```bash
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py prepare
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py status
+```
+
+Chạy toàn bộ training tuần tự trên GPU 0:
+
+```bash
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py train --gpu 0
+```
+
+Lệnh tự bỏ qua run đã hoàn tất và resume run dở từ `last.pt`. Có thể chạy một
+phần nhỏ trước, ví dụ chỉ `M=1` trên fold ETH:
+
+```bash
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py train --gpu 0 --mixtures 1 --folds eth
+```
+
+Sau khi đủ checkpoint, đánh giá `best.pt` trên toàn bộ test split rồi tổng hợp:
+
+```bash
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py evaluate --gpu 0
+.venv/bin/python base_mdn/eth_ucy_m_ablation.py summarize
+```
+
+Metric chính thức gồm `Ravg`, `Rmin`, `S68`, `S95`, `minADE20`, `minFDE20`.
+Giá trị `M` được chọn bằng mean validation NLL qua 5 fold, không chọn bằng test.
+Kết quả và hình được lưu tại:
+
+```text
+results/comparisons/eth_ucy_m_ablation/
+├── experiment_matrix.json
+├── fold_results.csv
+├── mean_results.csv
+├── summary.json
+├── metrics_vs_m.png
+├── accuracy_reliability_tradeoff.png
+├── paper_comparison.png
+└── evaluations/
+```

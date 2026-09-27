@@ -143,9 +143,14 @@ class MDN_Trainer:
                 
                 # Check if training diverged
                 if diverged: 
-                    
-                    self.save(epoch=epoch, diverged=diverged, final=False)
-                    return final_epoch-1, self.train_loss_per_epoch_list
+                        # The current epoch is incomplete and must never be
+                        # advertised as a valid final checkpoint. The tracked
+                        # run already has ``last.pt`` for the preceding epoch
+                        # and a validation-best checkpoint. Legacy untracked
+                        # runs retain the upstream emergency save behavior.
+                        if not self.tracker:
+                            self.save(epoch=epoch, diverged=diverged, final=False)
+                        return epoch - 1, self.history, True
                     
                 # No, continue
                 else:
@@ -181,9 +186,9 @@ class MDN_Trainer:
                     
                     # Check if model diverged
                     if diverged: 
-                        
-                        self.save(epoch=epoch, diverged=diverged, final=False)
-                        return final_epoch-1, self.train_loss_per_epoch_list
+                        if not self.tracker:
+                            self.save(epoch=epoch, diverged=diverged, final=False)
+                        return epoch - 1, self.history, True
                     
                     # No, continue
                     else:
@@ -262,4 +267,5 @@ class MDN_Trainer:
         if self.cfg.with_print: print(colored(f"Finished training, running {final_epoch-1}/{self.train_epochs} epochs", 'green'))
         if self.cfg.with_log: self.logger.info(f"Finished training, running {final_epoch-1}/{self.train_epochs} epochs")
         
-        return final_epoch-1, self.history if self.tracker else self.train_loss_per_epoch_list
+        history = self.history if self.tracker else self.train_loss_per_epoch_list
+        return final_epoch - 1, history, False

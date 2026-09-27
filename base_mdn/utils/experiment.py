@@ -117,7 +117,8 @@ class ExperimentTracker:
             manifest = json.loads(path.read_text())
         manifest.update({
             'schema_version': '1.0', 'run_id': self.run_id, 'status': status,
-            'experiment_name': 'imptc_official_repo_baseline', 'dataset': self.cfg.target,
+            'experiment_name': self.params.get('experiment_name', 'official_repo_baseline'),
+            'dataset': self.cfg.target,
             'run_seed': self.seed, 'best_epoch': self.best_epoch,
             'best_validation_nll': None if self.best_epoch is None else self.best_validation_nll,
             'updated_at': utc_now(),
@@ -137,8 +138,44 @@ class ExperimentTracker:
                                      'event': event, 'epoch': epoch, 'payload': payload}) + '\n')
 
     def _prepare_fixed_samples(self):
-        manifest_path = Path(self.cfg.project_root) / self.params['fixed_sample_manifest']
-        manifest = json.loads(manifest_path.read_text())
+        manifest_name = self.params.get('fixed_sample_manifest')
+        if manifest_name:
+            manifest_path = Path(self.cfg.project_root) / manifest_name
+            manifest = json.loads(manifest_path.read_text())
+        else:
+            count = int(self.params.get('fixed_sample_count', 0))
+            if count <= 0:
+                raise ValueError(
+                    'experiment_params must define fixed_sample_manifest or a positive '
+                    'fixed_sample_count'
+                )
+            if count > len(self.data_loader.sample_keys['eval']):
+                raise ValueError(
+                    f'Cannot select {count} fixed samples from only '
+                    f"{len(self.data_loader.sample_keys['eval'])} validation samples"
+                )
+            rng = np.random.default_rng(self.seed)
+            indices = sorted(rng.choice(
+                len(self.data_loader.sample_keys['eval']), size=count, replace=False
+            ).tolist())
+            manifest = {
+                'schema_version': '1.0',
+                'dataset': self.cfg.target,
+                'split': 'validation',
+                'selection_seed': self.seed,
+                'selection': 'numpy.default_rng choice without replacement, sorted',
+                'samples': [],
+            }
+            sample_prefix = self.params.get('fixed_sample_id_prefix', self.cfg.name)
+            for order, index in enumerate(indices, start=1):
+                manifest['samples'].append({
+                    'sample_id': f'{sample_prefix}_val_{order:02d}',
+                    'pickle_key': self.data_loader.sample_keys['eval'][index],
+                    'validation_index': index,
+                    'x_sha256': sha256_array(self.data_loader.eval_data[0][index]),
+                    'y_sha256': sha256_array(self.data_loader.eval_data[1][index]),
+                    'source': str(self.data_loader.eval_data[4][index]),
+                })
         key_to_index = {key: idx for idx, key in enumerate(self.data_loader.sample_keys['eval'])}
         for sample in manifest['samples']:
             index = key_to_index[sample['pickle_key']]
@@ -193,7 +230,7 @@ class ExperimentTracker:
             'created_at': utc_now(),
             # Backward-compatible aliases used by the upstream testing script.
             'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
-            'loss': [row['train_nll'] for row in history],
+            'loss': [row['train_nll'] if isinstance(row, dict) else row for row in history],
         }
 
     def save_checkpoint(self, name, epoch, model, optimizer, scheduler, history, capture_predictions=True):
@@ -264,6 +301,19 @@ class ExperimentTracker:
     def complete(self, epoch):
         self._write_manifest('completed', final_epoch=epoch, finished_at=utc_now())
         self.event('run_completed', epoch, {})
+
+    def diverged(self, failed_epoch, last_completed_epoch):
+        self._write_manifest(
+            'diverged',
+            diverged_at_epoch=int(failed_epoch),
+            last_completed_epoch=int(last_completed_epoch),
+            finished_at=utc_now(),
+        )
+        self.event('run_diverged', failed_epoch, {
+            'last_completed_epoch': int(last_completed_epoch),
+            'best_epoch': self.best_epoch,
+            'best_validation_nll': self.best_validation_nll,
+        })
 
 
 def restore_checkpoint(path, model, optimizer=None, scheduler=None, restore_rng=True, map_location='cpu'):
