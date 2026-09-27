@@ -263,6 +263,16 @@ class TestDemo1Selection(unittest.TestCase):
         self.assertEqual(selected['sample_id'], 'b')
         self.assertIn('explicit', reason)
 
+    def test_choose_candidate_checks_actual_area_ratio(self):
+        rows = [
+            {'sample_id': 'high_score', 'score': 10.0, 'qualified': True,
+             'a95_ratio_m1_over_m3': 0.3},
+            {'sample_id': 'illustrative', 'score': 8.0, 'qualified': True,
+             'a95_ratio_m1_over_m3': 1.4},
+        ]
+        selected, _ = choose_candidate(rows, None, None)
+        self.assertEqual(selected['sample_id'], 'illustrative')
+
     def test_runs_differing_beyond_num_gaussians_are_rejected(self):
         inputs = {
             'sample_ids': np.asarray(['s0']),

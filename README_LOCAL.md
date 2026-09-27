@@ -228,9 +228,10 @@ không phải global sharpness score `S68`/`S95`.
 
 ## 10. Tạo Demo 1 — M=1 so với M=3 trên cùng một mẫu
 
-Mục 8 cho ra **số** (biểu đồ cột metric). Demo 1 cho ra **lập luận nhìn thấy được**:
-một Gaussian phải kéo dài một ellipse phủ qua khoảng trống giữa hai nhánh, trong
-khi hỗn hợp đặt được mass lên từng nhánh và **để trống khoảng giữa**.
+Mục 8 cho ra **số** (biểu đồ cột metric). Demo 1 cho thấy trên cùng một
+trajectory rằng `M=1` tạo một vùng Gaussian, còn `M=3` có thể tạo vùng mật độ
+khác hình dạng và tập trung hơn. Không suy ra hành vi của toàn bộ test set từ
+một hình minh họa.
 
 Script chỉ đọc prediction đã lưu tại `best.pt` của 8 fixed samples, không train
 hay chạy lại model:
@@ -238,6 +239,10 @@ hay chạy lại model:
 ```bash
 .venv/bin/python base_mdn/create_demo1_m1_vs_m3.py
 ```
+
+Tám mẫu này thuộc tập **validation**. Hai panel dùng đúng cùng một mẫu và một
+future timestep. Hình là ví dụ minh họa; các metric định lượng trên toàn bộ
+test set nằm ở mục 8.
 
 Cách chọn mẫu theo đúng `EXPERIMENT_PROTOCOL.md` mục 15.2 (difficult/uncertain
 case), **không chọn bằng mắt**:
@@ -247,6 +252,9 @@ case), **không chọn bằng mắt**:
 - các thành phần **tách nhau hơn 2 sigma** — đây là ngưỡng để hỗn hợp hai
   Gaussian trọng số bằng nhau thực sự có hai đỉnh, nên nó là điều kiện cứng
   chứ không phải một số hạng mềm.
+- Trong các mẫu đạt tiêu chí trên, chỉ chọn mẫu có diện tích vùng 95% của
+  `M=1` lớn hơn `M=3` ít nhất 5%. Nếu không có mẫu nào như vậy, script dừng
+  thay vì tạo hình minh họa trái với kết quả thực tế.
 
 Toàn bộ bảng điểm per-sample được ghi ra đĩa để lựa chọn tái tạo được.
 
@@ -269,6 +277,10 @@ demo1_candidates.csv      # điểm của cả 8 mẫu
 
 Hai panel dùng **cùng giới hạn trục** và **cùng seed Monte Carlo**, nếu không thì
 chênh lệch diện tích không đọc được từ hình và có thể do nhiễu lấy mẫu.
+Vùng tin cậy của hình được đo trên một lưới cục bộ đủ mịn để thấy Gaussian
+rộng vài centimet; độ phân giải này chỉ phục vụ hình và không thay đổi model.
+`A68`/`A95` là diện tích của một sample tại một timestep, không phải metric
+`S68`/`S95` tổng hợp của test set.
 
 Script cảnh báo khi:
 

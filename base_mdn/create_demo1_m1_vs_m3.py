@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Create Demo 1: side-by-side M=1 vs M=3 confidence regions on one sample.
 
-The argument of this demo is visual, not numerical: a single Gaussian must
-stretch one ellipse across the gap between branches, while a mixture can place
-mass on the branches and leave the gap empty.
+The demo compares actual confidence regions for the same observed trajectory.
+It selects a validation example where the M=3 mixture has separated components
+and its measured 95% region is smaller than that of M=1.
 
 No model is trained or run. Confidence regions reuse the Monte Carlo
 highest-density-set construction and mesh-area convention of ``eval.py``, via
@@ -30,7 +30,6 @@ import numpy as np
 import torch
 
 from create_demo2_horizon_uncertainty import (
-    build_grid,
     confidence_map,
     contour_bounds,
     equal_limits,
@@ -192,8 +191,8 @@ def choose_candidate(rows, requested_sample_id, time_index):
                 f'Unknown fixed sample ID {requested_sample_id!r}. Available: {available}'
             )
         return matches[0], 'explicit --sample-id'
-    selected = max(rows, key=lambda row: row['score'])
-    if selected['score'] <= 0.0:
+    qualified = [row for row in rows if row.get('qualified', row.get('score', 0.0) > 0.0)]
+    if not qualified:
         raise SystemExit(
             'No fixed sample qualifies as multimodal: every candidate has fewer than two\n'
             'significant components or separation below 2 sigma. Demo 1 would show two\n'
@@ -201,10 +200,45 @@ def choose_candidate(rows, requested_sample_id, time_index):
             'Options: lower --min-weight, pass --sample-id explicitly, or draw Demo 1 on a\n'
             'synthetic branching dataset and label it as an illustration.'
         )
-    reason = 'highest multimodality score (protocol 15.2)'
+    illustrative = [
+        row for row in qualified
+        if row.get('a95_ratio_m1_over_m3', 0.0) >= 1.05
+    ]
+    if not illustrative:
+        raise SystemExit(
+            'The fixed validation samples contain multimodal M=3 predictions, '
+            'but none has an M=1 A95 region at least 5% larger. The proposed '
+            'Demo 1 claim is unsupported by these samples.'
+        )
+    selected = max(illustrative, key=lambda row: row['score'])
+    reason = 'highest multimodality score among samples with A95(M1)/A95(M3) >= 1.05'
     if time_index is None:
         reason += ', horizon chosen per sample'
     return selected, reason
+
+
+def adaptive_grid(predictions, sample_index, timestep, device, points_per_axis=500):
+    """Resolve narrow Gaussians using one common grid for both models.
+
+    The repository's 0.1 m test mesh is suitable for aggregate evaluation but
+    can entirely miss a component only a few centimetres wide. This local
+    grid changes visualization resolution, never model parameters.
+    """
+    lowers, uppers = [], []
+    for prediction in predictions:
+        means = prediction['mu'][sample_index, timestep]
+        covariances = prediction['covariance'][sample_index, timestep]
+        std = np.sqrt(np.diagonal(covariances, axis1=-2, axis2=-1))
+        lowers.append(means - 5.0 * std)
+        uppers.append(means + 5.0 * std)
+    lower = np.min(np.concatenate(lowers), axis=0)
+    upper = np.max(np.concatenate(uppers), axis=0)
+    xs = torch.linspace(float(lower[0]), float(upper[0]), points_per_axis, device=device)
+    ys = torch.linspace(float(lower[1]), float(upper[1]), points_per_axis, device=device)
+    x_grid, y_grid = torch.meshgrid(xs, ys, indexing='xy')
+    grid = torch.stack([x_grid, y_grid], dim=-1).reshape(-1, 2)
+    area = float(np.prod(upper - lower))
+    return xs.cpu().numpy(), ys.cpu().numpy(), grid, area
 
 
 def panel_payload(prediction, sample_index, timestep, grid, grid_shape, mesh_area,
@@ -330,7 +364,6 @@ def main():
     m3_run, m3_config, _, m3_prediction = m3
 
     model_params = m3_config['model_params']
-    test_params = m3_config['test_params']
     delta_t = float(model_params['delta_t'])
     horizon = int(model_params['forecast_horizon'])
 
@@ -345,17 +378,38 @@ def main():
 
     # Candidate ranking uses the mixture run: M=1 has nothing to be multimodal about.
     rows = scan_candidates(inputs, m3_prediction, time_index, args.min_weight)
+    # Rank by multimodality, but require the plotted area relationship to be
+    # supported by the actual M=1 and M=3 outputs on the same adaptive grid.
+    for row in rows:
+        if not row['qualified'] and args.sample_id != row['sample_id']:
+            continue
+        _, _, candidate_grid, candidate_area = adaptive_grid(
+            (m1_prediction, m3_prediction), row['sample_index'],
+            row['timestep'], device,
+        )
+        candidate_areas = []
+        for prediction in (m1_prediction, m3_prediction):
+            confidence = confidence_map(
+                prediction['pi'][row['sample_index'], row['timestep']],
+                prediction['mu'][row['sample_index'], row['timestep']],
+                prediction['covariance'][row['sample_index'], row['timestep']],
+                candidate_grid, args.num_samples, args.seed, device,
+            )
+            candidate_areas.append(region_area(confidence, 0.95, candidate_area))
+        row['candidate_a95_m1_m2'], row['candidate_a95_m3_m2'] = candidate_areas
+        row['a95_ratio_m1_over_m3'] = (
+            candidate_areas[0] / candidate_areas[1]
+            if candidate_areas[1] > 0 else float('nan')
+        )
     selected, reason = choose_candidate(rows, args.sample_id, time_index)
     sample_index = selected['sample_index']
     timestep = selected['timestep']
     seconds = (timestep + 1) * delta_t
 
-    xs, ys, grid = build_grid(
-        float(test_params['mesh_range_x']), float(test_params['mesh_range_y']),
-        float(test_params['mesh_resolution']), device,
+    xs, ys, grid, mesh_area = adaptive_grid(
+        (m1_prediction, m3_prediction), sample_index, timestep, device,
     )
     grid_shape = (len(ys), len(xs))
-    mesh_area = float(test_params['mesh_range_x']) * float(test_params['mesh_range_y'])
 
     panels = {}
     for label, prediction in (
