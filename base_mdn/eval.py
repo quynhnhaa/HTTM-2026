@@ -496,6 +496,7 @@ class MDN_Forecaster:
         tau = 1
         samples = gmm.sample(sample_shape=torch.Size([n_samples]))
         samples_log_prob = gmm.log_prob(samples)
+        #Tính theo timestep, chuẩn hoá theo timestep
         probs = torch.exp(samples_log_prob/tau) / torch.sum(torch.exp(samples_log_prob/tau), dim=0)
     
         return samples, probs
