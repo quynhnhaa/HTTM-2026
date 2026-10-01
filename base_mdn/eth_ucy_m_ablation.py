@@ -195,7 +195,7 @@ def full_test_nll(model, loader, cfg, device):
         for start in range(0, len(data_x), cfg.test_params['batch_size']):
             x = torch.as_tensor(data_x[start:start + cfg.test_params['batch_size']], dtype=torch.float32, device=device)
             y = torch.as_tensor(data_y[start:start + cfg.test_params['batch_size']], dtype=torch.float32, device=device)
-            loss, diverged = NLL_MDN_loss(model(x), y, cfg.model_params['num_gaussians'])
+            loss, diverged = NLL_MDN_loss(model(x), y, cfg.model_params['num_gaussians'], cfg.model_params.get('mdn_parameterization'))
             if diverged or loss is None or not torch.isfinite(loss):
                 raise RuntimeError(f'Non-finite test NLL for {cfg.name}')
             count = y.shape[0] * y.shape[1]

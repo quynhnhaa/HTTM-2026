@@ -459,7 +459,7 @@ class MDN_Forecaster:
     
     
     def build_distribution(self, output, num_gaussians):
-        return build_mdn_distribution(output, num_gaussians)
+        return build_mdn_distribution(output, num_gaussians, self.model_params.get('mdn_parameterization'))
         
         
     def build_confidence_set_mdn(self, output, target, num_gaussians, n_samples):

@@ -28,6 +28,19 @@ def training(cfg, gpu_id):
     resume_path = os.environ.get('MDN_RESUME_CHECKPOINT')
     resume_requested = bool(resume_path) or cfg.train_params['resume_training']
 
+    # Reject incompatible resumes before the tracker writes any run metadata.
+    if resume_requested:
+        candidate = resume_path or os.path.join(cfg.checkpoint_path, 'model_final.pt')
+        if not os.path.isfile(candidate):
+            raise FileNotFoundError(candidate)
+        from utils.mdn_distribution import checkpoint_parameterization, resolve_parameterization
+        saved = torch.load(candidate, map_location='cpu', weights_only=False)
+        if checkpoint_parameterization(saved) != resolve_parameterization(cfg.model_params.get('mdn_parameterization')):
+            raise ValueError('Cannot resume with a different MDN parameterization; start a new run')
+        saved_params = saved.get('resolved_config', {}).get('model_params')
+        if saved_params is not None and saved_params != cfg.model_params:
+            raise ValueError('Resume architecture differs from config')
+
     # init dataloader
     data_loader = DataLoader(cfg=cfg)
     
@@ -59,7 +72,10 @@ def training(cfg, gpu_id):
     model = LSTM_Trajectory_Forecast(cfg=cfg.model_params).to(device)
     optimizer = optim.Adam(params=model.parameters(), lr=cfg.train_params['lr_default'])
     scheduler = lr_scheduler.LinearLR(optimizer, start_factor=cfg.train_params['lr_start_factor'], end_factor=cfg.train_params['lr_end_factor'], total_iters=cfg.train_params['train_epochs'])
-    loss_fn = lambda output, target: NLL_MDN_loss(output=output, target=target, num_gaussians=cfg.model_params['num_gaussians'])
+    loss_fn = lambda output, target: NLL_MDN_loss(output=output, target=target, num_gaussians=cfg.model_params['num_gaussians'], parameterization=cfg.model_params.get('mdn_parameterization'))
+    selected_run = os.environ.get('MDN_RUN_ID')
+    if selected_run and not resume_requested and os.path.exists(os.path.join(cfg.result_path, 'runs', selected_run)):
+        raise FileExistsError(f'Run already exists: {selected_run}')
     tracker = ExperimentTracker(cfg=cfg, data_loader=data_loader, device=device)
     
     # load pretrained model
@@ -71,6 +87,9 @@ def training(cfg, gpu_id):
             
             # yes load it
             checkpoint = restore_checkpoint(resume_path, model, optimizer, scheduler, map_location=device)
+            from utils.mdn_distribution import checkpoint_parameterization, resolve_parameterization
+            if checkpoint_parameterization(checkpoint) != resolve_parameterization(cfg.model_params.get('mdn_parameterization')):
+                raise ValueError('Cannot resume with a different MDN parameterization; start a new run')
             saved_model_params = checkpoint.get('resolved_config', {}).get('model_params')
             if saved_model_params is not None and saved_model_params != cfg.model_params:
                 raise ValueError('Resume checkpoint model_params do not match the active config')
@@ -153,6 +172,8 @@ if __name__ == "__main__":
     type = 'training'
     parser = config_parser()
     args=parser.parse_args()
+    if args.run_id:
+        os.environ['MDN_RUN_ID'] = args.run_id
     
     # gpu handling
     if args.gpu:

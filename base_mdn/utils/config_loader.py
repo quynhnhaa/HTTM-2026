@@ -30,6 +30,9 @@ class ConfigLoader:
         self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.paths = self._resolve_paths(cfg['paths'])
         self.model_params = cfg['model_params']
+        from utils.mdn_distribution import resolve_parameterization
+        if 'mdn_parameterization' in self.model_params:
+            self.model_params['mdn_parameterization'] = resolve_parameterization(self.model_params['mdn_parameterization'])
         self.train_params = cfg['train_params']
         self.test_params = cfg['test_params']
         self.eval_metrics = cfg['eval_metrics']

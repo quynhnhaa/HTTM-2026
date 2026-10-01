@@ -101,11 +101,13 @@ class DataLoader:
             X = np.take(a=self.train_data[0], indices=random_reduced_indices, axis=0)
             y = np.take(a=self.train_data[1], indices=random_reduced_indices, axis=0)
             
+            self.current_train_ids = [self.sample_ids['train'][int(i)] for i in self.train_order[random_reduced_indices]]
             return X, y
         
         # with no modifications
         else:
             
+            self.current_train_ids = [self.sample_ids['train'][int(i)] for i in self.train_order]
             return self.train_data[0], self.train_data[1]
 
 
@@ -151,11 +153,13 @@ class DataLoader:
             r = np.take(a=self.eval_data[3], indices=random_reduced_indices, axis=0)
             s = np.take(a=self.eval_data[4], indices=random_reduced_indices, axis=0)
             
+            self.current_eval_ids = [self.sample_ids['eval'][int(i)] for i in random_reduced_indices]
             return X, y, p, r, s
         
         # with no modifications
         else:
             
+            self.current_eval_ids = self.sample_ids['eval']
             return self.eval_data[0], self.eval_data[1], self.eval_data[2], self.eval_data[3], self.eval_data[4]
         
     

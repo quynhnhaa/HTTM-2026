@@ -13,6 +13,39 @@ class MDN_Trainer:
     """MDN trainer class
     """
     
+    def capture_failure(self, outputs, inputs, targets, epoch, iteration, split, data_loader):
+        if self.tracker is None:
+            return
+        from utils.mdn_distribution import decode_mdn_output, build_mdn_distribution
+        policy = self.cfg.model_params.get('mdn_parameterization')
+        k = self.cfg.model_params['num_gaussians']
+        with torch.no_grad():
+            decoded = decode_mdn_output(outputs, k, policy)
+            payload = {'split': split, 'batch_start': iteration,
+                       'batch_size': len(inputs), 'mdn_parameterization': policy or {'mode': 'legacy'}}
+            for name in ('sigma', 'rho', 'covariance'):
+                value = decoded[name]
+                finite = value[torch.isfinite(value)]
+                payload[name] = {'finite': bool(torch.isfinite(value).all()),
+                                 'min': float(finite.min()) if finite.numel() else None,
+                                 'max': float(finite.max()) if finite.numel() else None}
+            try:
+                distribution = build_mdn_distribution(outputs, k, policy)
+                payload['error'] = 'Non-finite NLL' if not torch.isfinite(distribution.log_prob(targets)).all() else 'Loss failure'
+            except (ValueError, RuntimeError) as error:
+                payload['error'] = str(error)[:4000]
+            directory = self.tracker.run_dir / 'diagnostics'
+            directory.mkdir(exist_ok=True)
+            name = f'{split}_epoch_{epoch:04d}_batch_{iteration}'
+            np.savez_compressed(directory / (name + '.npz'),
+                X=inputs.detach().cpu().numpy(), y=targets.detach().cpu().numpy(),
+                raw_output=outputs.detach().cpu().numpy(),
+                **{key: value.detach().cpu().numpy() for key, value in decoded.items()})
+            ids = getattr(data_loader, 'current_train_ids' if split == 'train' else 'current_eval_ids', [])
+            payload['sample_ids'] = list(map(str, ids[iteration:iteration + len(inputs)]))
+            self.tracker._write_json(directory / (name + '.json'), payload)
+            self.tracker.event('distribution_failure', epoch, payload)
+
     def __init__(self, cfg, model, loss_fn, optimizer, scheduler, epoch, loss_hist, logger, device='cpu', tracker=None):
         """Init and setup
         """
@@ -143,6 +176,7 @@ class MDN_Trainer:
                 
                 # Check if training diverged
                 if diverged: 
+                        self.capture_failure(outputs, inputs, targets, epoch, iteration, 'train', data_loader)
                         # The current epoch is incomplete and must never be
                         # advertised as a valid final checkpoint. The tracked
                         # run already has ``last.pt`` for the preceding epoch
@@ -186,6 +220,7 @@ class MDN_Trainer:
                     
                     # Check if model diverged
                     if diverged: 
+                        self.capture_failure(outputs, inputs, targets, epoch, iteration, 'eval', data_loader)
                         if not self.tracker:
                             self.save(epoch=epoch, diverged=diverged, final=False)
                         return epoch - 1, self.history, True

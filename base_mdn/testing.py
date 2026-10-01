@@ -124,9 +124,11 @@ def testing(args, gpu_id):
         checkpoint_path = resolve_test_checkpoint(
             cfg, checkpoint=args.checkpoint, run_id=args.run_id
         )
-        checkpoint = torch.load(f=checkpoint_path, map_location=device)
+        checkpoint = torch.load(f=checkpoint_path, map_location=device, weights_only=False)
+        from utils.mdn_distribution import apply_checkpoint_parameterization
+        apply_checkpoint_parameterization(cfg, checkpoint)
         saved_model_params = checkpoint.get('resolved_config', {}).get('model_params')
-        if saved_model_params is not None and saved_model_params != cfg.model_params:
+        if saved_model_params is not None and {k:v for k,v in saved_model_params.items() if k != 'mdn_parameterization'} != {k:v for k,v in cfg.model_params.items() if k != 'mdn_parameterization'}:
             raise ValueError(
                 f'Checkpoint model_params do not match active config: {checkpoint_path}'
             )

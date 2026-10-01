@@ -69,7 +69,7 @@ class LSTM_Trajectory_Forecast(nn.Module):
         return output
     
     
-def NLL_MDN_loss(output, target, num_gaussians):
+def NLL_MDN_loss(output, target, num_gaussians, parameterization=None):
     """NLL loss definition for MDN
     """
     
@@ -77,7 +77,7 @@ def NLL_MDN_loss(output, target, num_gaussians):
     # target shape: [train_batch_size, n_horizons, 2] (x, y)
     
     try:
-        mixture = build_mdn_distribution(output, num_gaussians)
+        mixture = build_mdn_distribution(output, num_gaussians, parameterization)
         
     except:
         
@@ -87,4 +87,6 @@ def NLL_MDN_loss(output, target, num_gaussians):
     params_loss = -mixture.log_prob(target).mean()
     loss = params_loss
     
+    if not torch.isfinite(loss):
+        return None, True
     return loss, False

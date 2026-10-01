@@ -119,6 +119,7 @@ class ExperimentTracker:
             'schema_version': '1.0', 'run_id': self.run_id, 'status': status,
             'experiment_name': self.params.get('experiment_name', 'official_repo_baseline'),
             'dataset': self.cfg.target,
+            'mdn_parameterization': self.cfg.model_params.get('mdn_parameterization', {'mode': 'legacy'}),
             'run_seed': self.seed, 'best_epoch': self.best_epoch,
             'best_validation_nll': None if self.best_epoch is None else self.best_validation_nll,
             'updated_at': utc_now(),
@@ -161,6 +162,7 @@ class ExperimentTracker:
             manifest = {
                 'schema_version': '1.0',
                 'dataset': self.cfg.target,
+            'mdn_parameterization': self.cfg.model_params.get('mdn_parameterization', {'mode': 'legacy'}),
                 'split': 'validation',
                 'selection_seed': self.seed,
                 'selection': 'numpy.default_rng choice without replacement, sorted',
@@ -203,7 +205,7 @@ class ExperimentTracker:
         X = torch.as_tensor(self.data_loader.eval_data[0][self.fixed_indices], dtype=torch.float32, device=self.device)
         with torch.no_grad():
             raw = model(X)
-            decoded = decode_mdn_output(raw, self.cfg.model_params['num_gaussians'])
+            decoded = decode_mdn_output(raw, self.cfg.model_params['num_gaussians'], self.cfg.model_params.get('mdn_parameterization'))
         name = label or f'epoch_{epoch:04d}'
         np.savez_compressed(
             self.prediction_dir / f'{name}.npz',
