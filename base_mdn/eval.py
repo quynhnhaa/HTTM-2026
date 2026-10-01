@@ -459,7 +459,12 @@ class MDN_Forecaster:
     
     
     def build_distribution(self, output, num_gaussians):
-        return build_mdn_distribution(output, num_gaussians)
+        # rho_bound must match what the model was TRAINED with, otherwise the
+        # decoded distribution is not the one that produced the loss. It lives in
+        # model_params, and testing.py already refuses a checkpoint whose
+        # model_params differ from the active config, so the two cannot drift.
+        return build_mdn_distribution(
+            output, num_gaussians, rho_bound=self.model_params.get('rho_bound'))
         
         
     def build_confidence_set_mdn(self, output, target, num_gaussians, n_samples):

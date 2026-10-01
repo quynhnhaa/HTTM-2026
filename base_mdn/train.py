@@ -59,7 +59,7 @@ def training(cfg, gpu_id):
     model = LSTM_Trajectory_Forecast(cfg=cfg.model_params).to(device)
     optimizer = optim.Adam(params=model.parameters(), lr=cfg.train_params['lr_default'])
     scheduler = lr_scheduler.LinearLR(optimizer, start_factor=cfg.train_params['lr_start_factor'], end_factor=cfg.train_params['lr_end_factor'], total_iters=cfg.train_params['train_epochs'])
-    loss_fn = lambda output, target: NLL_MDN_loss(output=output, target=target, num_gaussians=cfg.model_params['num_gaussians'])
+    loss_fn = lambda output, target: NLL_MDN_loss(output=output, target=target, num_gaussians=cfg.model_params['num_gaussians'], rho_bound=cfg.model_params.get('rho_bound'))
     tracker = ExperimentTracker(cfg=cfg, data_loader=data_loader, device=device)
     
     # load pretrained model

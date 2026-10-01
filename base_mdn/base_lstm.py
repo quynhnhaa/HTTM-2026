@@ -26,6 +26,11 @@ class LSTM_Trajectory_Forecast(nn.Module):
         self.output_size = cfg['num_gaussians']*cfg['output_factor']
         self.forecast_horizon = cfg['forecast_horizon']
         self.lstm_num_layers = cfg['lstm_num_layers']
+
+        # Opt-in, defaults to False so every existing config keeps the exact
+        # baseline behaviour. See forward() for what it does and why.
+        self.num_gaussians = cfg['num_gaussians']
+        self.residual_mu = bool(cfg.get('residual_mu', False))
         
         # stacked LSTM layer
         self.lstm = nn.LSTM(input_size=self.lstm_input_shape, hidden_size=self.lstm_hidden_size, num_layers=self.lstm_num_layers, batch_first=True)
@@ -65,20 +70,38 @@ class LSTM_Trajectory_Forecast(nn.Module):
         
         # reshape output: [train_batch_size, forecast_horizon, output_size]
         output = torch.reshape(output, (-1,self.forecast_horizon, self.output_size))
-        
+
+        if self.residual_mu:
+
+            # Baseline: every horizon's mu is an INDEPENDENT linear function of the
+            # same hidden vector, so the head must learn absolute positions whose
+            # scale spans ~0.1 m at h=1 and ~6 m at h=48. Nothing ties horizon h to
+            # h+1, and measurements show the model is weakest exactly at the short
+            # horizons (reliability 96.1% @ 0.2 s vs 98.6% @ 1.6 s).
+            #
+            # Here mu channels become per-step DISPLACEMENTS that are accumulated,
+            # so mu[h] = sum of the first h steps. That forces smooth trajectories
+            # and lets horizon 1 learn one small step instead of an absolute
+            # position. Channel layout is [mu_x(M), mu_y(M), sigma_x, sigma_y,
+            # rho, pi], so only the first 2*M channels are accumulated.
+            k = 2 * self.num_gaussians
+            output = torch.cat(
+                [output[..., :k].cumsum(dim=1), output[..., k:]], dim=-1)
+
         return output
     
     
-def NLL_MDN_loss(output, target, num_gaussians):
+def NLL_MDN_loss(output, target, num_gaussians, rho_bound=None):
     """NLL loss definition for MDN
     """
-    
+
     # output shape: [train_batch_size, n_horizons, num_gaussians * 6] (mu_x, mu_y, sigma_x, sigma_y, rho, alpha for each Gaussian)
     # target shape: [train_batch_size, n_horizons, 2] (x, y)
-    
+    # rho_bound: opt-in, None keeps the baseline bare tanh (see mdn_distribution)
+
     try:
-        mixture = build_mdn_distribution(output, num_gaussians)
-        
+        mixture = build_mdn_distribution(output, num_gaussians, rho_bound=rho_bound)
+
     except:
         
         return None, True

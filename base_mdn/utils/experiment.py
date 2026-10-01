@@ -166,7 +166,9 @@ class ExperimentTracker:
         X = torch.as_tensor(self.data_loader.eval_data[0][self.fixed_indices], dtype=torch.float32, device=self.device)
         with torch.no_grad():
             raw = model(X)
-            decoded = decode_mdn_output(raw, self.cfg.model_params['num_gaussians'])
+            decoded = decode_mdn_output(
+                raw, self.cfg.model_params['num_gaussians'],
+                rho_bound=self.cfg.model_params.get('rho_bound'))
         name = label or f'epoch_{epoch:04d}'
         np.savez_compressed(
             self.prediction_dir / f'{name}.npz',

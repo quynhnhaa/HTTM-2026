@@ -46,6 +46,8 @@ class MDN_Trainer:
         self.train_epochs = cfg.train_params['train_epochs']
         self.eval_epoch_step = cfg.train_params['eval_epoch_step']
         self.min_dynamic_input_horizon = cfg.train_params['min_dynamic_input_horizon']
+        # 0 = off, which is what every pre-existing config resolves to.
+        self.grad_clip_norm = float(cfg.train_params.get('grad_clip_norm', 0.0))
         
         # eval params
         self.confidence_levels = cfg.test_params['confidence_levels']
@@ -151,8 +153,20 @@ class MDN_Trainer:
                 else:
                     
                     loss.backward()
+
+                    # Opt-in gradient clipping. Defaults to 0 (off), so every
+                    # existing config trains exactly as before. This does NOT
+                    # change the model, only the update step. It is the standard
+                    # remedy for the divergence this repository hits on larger
+                    # configurations: lstm_hidden_size=32 died at epoch 713 and
+                    # num_gaussians=8 died in 4 of 5 ETH/UCY folds, both because
+                    # a parameter blow-up made the covariance singular.
+                    if self.grad_clip_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(), max_norm=self.grad_clip_norm)
+
                     self.optimizer.step()
-                    
+
                     # train loss for every batch
                     train_loss_list.append(loss.item())
                 
