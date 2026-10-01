@@ -80,7 +80,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', default='paper_peds_imptc.json')
+    parser.add_argument('--config', default='default_peds_imptc.json')
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--seed', type=int, default=2024)
     parser.add_argument('--gpu', default='0')

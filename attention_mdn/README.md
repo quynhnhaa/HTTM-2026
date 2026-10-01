@@ -26,6 +26,6 @@ GIF/montage nằm trong `runs/<run_id>/figures/`. Dự báo cố định đượ
 
 `testing/evaluation.json` chứa NLL test, metric chính thức và delta so với baseline M3 trong `results/comparisons/imptc_m1_vs_m3/comparison.json`. Smoke chỉ kiểm tra pipeline và artefact, không dùng để kết luận khoa học.
 
-## Huấn luyện với tham số hóa sigma/rho theo dạng paper
+## Công thức MDN hiện tại
 
-Xem [cấu hình, kiểm tra và lệnh train mới](../docs/MDN_PARAMETERIZATION.md). Các run cũ tiếp tục dùng legacy; hai run mới dùng cùng epsilon và lưu kết quả riêng.
+Đã khôi phục công thức legacy. Phiên bản paper được lưu trong commit `29485b8`; xem [ghi chú khôi phục](../docs/MDN_PARAMETERIZATION.md).

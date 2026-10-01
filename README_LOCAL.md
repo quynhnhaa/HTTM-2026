@@ -273,6 +273,6 @@ results/comparisons/eth_ucy_m_ablation/
 └── evaluations/
 ```
 
-## Huấn luyện với tham số hóa sigma/rho theo dạng paper
+## Công thức MDN hiện tại
 
-Xem [cấu hình, kiểm tra và lệnh train mới](docs/MDN_PARAMETERIZATION.md). Các run cũ tiếp tục dùng legacy; hai run mới dùng cùng epsilon và lưu kết quả riêng.
+Đã khôi phục công thức legacy. Phiên bản paper được lưu trong commit `29485b8`; xem [ghi chú khôi phục](docs/MDN_PARAMETERIZATION.md).
