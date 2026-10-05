@@ -487,7 +487,7 @@ def fig15_test_sharpness():
         ax.text(i + 0.18, off_v[i], f"{off_v[i]:.2f}", ha="center", va="bottom", fontsize=9.5)
     ax.set_xticks(xs)
     ax.set_xticklabels(["S68", "S95"])
-    ax.text(0.5, 0.9, "xám: trung bình theo mẫu\ncam: điểm chính thức (trung bình 101 phân vị,\ngồm cả mẫu lớn nhất)", transform=ax.transAxes, ha="center", va="top", fontsize=9, color=INK2)
+    ax.text(0.5, 0.9, "xám: trung bình theo mẫu\ncam: điểm chính thức (trung bình 101 phân vị,\ngồm cả phân vị 100 = giá trị lớn nhất)", transform=ax.transAxes, ha="center", va="top", fontsize=9, color=INK2)
     ax.set_ylim(0, max(off_v) * 1.3)
     ax.set_title("Điểm chính thức cao hơn trung bình mẫu", loc="left", fontsize=10, weight="bold")
     fig.suptitle("Độ sắc nét của sparsemax trên tập test [thật]: đa số mẫu rất sắc, điểm chính thức bị kéo lên bởi đuôi", fontsize=11, weight="bold", y=1.03)
@@ -584,21 +584,21 @@ def fig18_s95_explained():
         return None
     d = json.loads(path.read_text())
     fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.6), gridspec_kw={"width_ratios": [1.0, 1.55, 1.35]})
-    # (a) tổng: thân + phân vị 100
+    # (a) tổng: phân vị 0–99 + phân vị 100
     ax = axes[0]
     for i, (name, color) in enumerate((("K3", BLUE), ("K8", ORANGE))):
         s = d["s95"][f"{name}_sum"]
         ax.bar(i, s["body"], color=color, width=0.55)
         ax.bar(i, s["p100"], bottom=s["body"], color=color, alpha=0.45, width=0.55, hatch="//", edgecolor=SURFACE)
         ax.text(i, s["total"], f"{s['total']:.2f}", ha="center", va="bottom", fontsize=9.5, weight="bold")
-        ax.text(i, s["body"] / 2, f"thân\n{s['body']:.2f}", ha="center", va="center", fontsize=8.8, color="white")
-        ax.text(i, s["body"] + s["p100"] / 2, f"p100\n{s['p100']:.2f}", ha="center", va="center", fontsize=8.8)
+        ax.text(i, s["body"] / 2, f"Phân vị 0–99\n{s['body']:.2f}", ha="center", va="center", fontsize=8.8, color="white")
+        ax.text(i, s["body"] + s["p100"] / 2, f"Phân vị 100\n(giá trị lớn nhất)\n{s['p100']:.2f}", ha="center", va="center", fontsize=8.0)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["baseline K=3", "sparsemax K_max=8"])
     ax.set_ylabel("điểm S95 chính thức")
     ax.set_ylim(0, 8.2)
     ax.set_title("(a) Chênh lệch nằm ở phân vị 100", loc="left", fontsize=10.5, weight="bold")
-    # (b) theo mốc: đóng góp của p100
+    # (b) theo mốc: đóng góp của phân vị 100
     ax = axes[1]
     t = d["horizons_s"]
     x = np.arange(len(t))
@@ -615,7 +615,7 @@ def fig18_s95_explained():
     mx = d["s95"]["K8"][2]["max_area_m2"]; m3 = d["s95"]["K3"][2]["max_area_m2"]
     ax.annotate(f"2.4 s: mẫu rộng nhất\nK_max=8: {mx:.0f} m²\nK=3: {m3:.0f} m²", xy=(2 + 0.19, d["s95"]["K8"][2]["total"]), xytext=(2.35, 1.75),
                 fontsize=9, arrowprops=dict(arrowstyle="->", color=INK2), color=INK)
-    ax.text(0.02, 0.97, "đậm = thân (phân vị 0–99), nhạt gạch = mẫu rộng nhất (p100)\nxanh dương: baseline K=3   cam: sparsemax K_max=8", transform=ax.transAxes, va="top", fontsize=9, color=INK2)
+    ax.text(0.02, 0.97, "đậm = phân vị 0–99; nhạt gạch = phân vị 100 (giá trị lớn nhất)\nxanh dương: baseline K=3   cam: sparsemax K_max=8", transform=ax.transAxes, va="top", fontsize=9, color=INK2)
     # (c) thành phần của mẫu rộng nhất
     ax = axes[2]
     w = d["widest_sample"]
@@ -629,8 +629,10 @@ def fig18_s95_explained():
         lines.append("")
     ax.text(0.0, 1.0, "\n".join(lines), va="top", ha="left", fontsize=9.6, family="DejaVu Sans Mono", color=INK)
     ax.set_title("(c) Thành phần của mẫu rộng nhất [thật]", loc="left", fontsize=10.5, weight="bold")
-    fig.suptitle("Vì sao S95 của sparsemax K_max = 8 cao hơn K = 3 trên test [thật, một seed]: thân gần bằng nhau, chênh lệch đến từ một mẫu cực rộng",
+    fig.suptitle("Phân rã điểm S95 trên tập test: sparsemax K_max = 8 so với baseline K = 3",
                  fontsize=11, weight="bold", y=1.03)
+    fig.text(0.5, -0.03, "Hai phần là hai phần đóng góp vào điểm S95 (trung bình 101 phân vị của diện tích vùng tin cậy theo mẫu, ở mỗi mốc), không phải hai vùng của Gaussian.",
+             ha="center", fontsize=9.5, color=INK2)
     save(fig, "18_s95_explained.png")
     return {"s95_sum": {"K3": d["s95"]["K3_sum"], "K8": d["s95"]["K8_sum"]}}
 

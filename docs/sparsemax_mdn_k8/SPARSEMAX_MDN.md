@@ -218,15 +218,17 @@ Trả lời ngắn: **đó là hệ quả của cách tính điểm chính thứ
 
 **Hình 18** **[thật]**.
 
-**Điểm chính thức = trung bình 101 phân vị của diện tích vùng tin cậy theo mẫu, ở mỗi mốc dự báo.** Phân vị thứ 100 là *mẫu rộng nhất* ở mốc đó, nên **một mẫu duy nhất chiếm khoảng 1% điểm** của mỗi mốc, bất kể có bao nhiêu mẫu.
+**Điểm chính thức = trung bình 101 phân vị của diện tích vùng tin cậy theo mẫu, ở mỗi mốc dự báo.** Phân vị 100 là **giá trị lớn nhất**, tức diện tích của *mẫu rộng nhất* ở mốc đó (còn phân vị 0 là giá trị nhỏ nhất); lưới có đúng 101 điểm (0, 1, ..., 100) nên mỗi điểm có trọng số 1/101. Vì vậy **một mẫu duy nhất (mẫu rộng nhất) chiếm khoảng 1% điểm** của mỗi mốc, bất kể có bao nhiêu mẫu.
 
-**Bước 1. Phân rã điểm: phần "thân" gần như bằng nhau, chênh lệch nằm ở phân vị 100.**
+**Bước 1. Phân rã điểm: phần đóng góp của phân vị 0–99 gần như bằng nhau, chênh lệch nằm ở phân vị 100 (giá trị lớn nhất).**
+
+*Lưu ý về từ "phân vị":* "phân vị 0–99" và "phân vị 100" ở đây là các điểm của **lưới 101 phân vị trong công thức điểm chính thức** (tính theo từng mốc); chúng là hai phần đóng góp vào điểm S95, **không phải hai vùng của Gaussian**. Các hàng "phân vị 90/99/99.9 theo mẫu" ở cuối bảng là một khái niệm khác: phân vị của điểm sắc nét tính cho từng mẫu.
 
 | Test, 56 694 mẫu | S95 sparsemax | S95 K = 3 | S68 sparsemax | S68 K = 3 |
 |---|---:|---:|---:|---:|
 | Điểm chính thức | 7.034 | 6.061 | 1.148 | 1.358 |
-| Phần "thân" (phân vị 0 đến 99) | 4.511 | 4.463 | **0.562** | 0.627 |
-| **Phần mẫu rộng nhất mỗi mốc (phân vị 100)** | **2.523** | 1.598 | 0.587 | 0.730 |
+| Phân vị 0 đến 99 (100 trong 101 điểm của lưới, từ giá trị nhỏ nhất đến phân vị 99) | 4.511 | 4.463 | **0.562** | 0.627 |
+| **Phân vị 100 (giá trị lớn nhất, mẫu rộng nhất mỗi mốc)** | **2.523** | 1.598 | 0.587 | 0.730 |
 | Trung bình theo mẫu | 4.691 | 4.705 | **0.603** | 0.694 |
 | Trung vị theo mẫu | 4.174 | 3.925 | 0.503 | 0.546 |
 | Phân vị 90 theo mẫu | 6.51 | 6.88 | 1.13 | 1.35 |
@@ -234,7 +236,7 @@ Trả lời ngắn: **đó là hệ quả của cách tính điểm chính thứ
 | Phân vị 99.9 theo mẫu | **26.9** | 42.8 | 7.11 | 15.0 |
 | Số mẫu có điểm trên 20 | **92** | 258 | **12** | 48 |
 
-Chênh lệch S95 chính thức là **+0.973**, trong đó phần thân chỉ **+0.048** (+1%) còn phân vị 100 là **+0.925**. Nói cách khác, nếu bỏ mẫu rộng nhất ở mỗi mốc thì S95 của hai mô hình gần như bằng nhau, và các thống kê đuôi theo mẫu (phân vị 90, 99, 99.9, số mẫu rộng bất thường) của sparsemax còn **tốt hơn** K = 3. Với S68, sparsemax tốt hơn ở cả phần thân lẫn phân vị 100.
+Chênh lệch S95 chính thức là **+0.973**, trong đó phân vị 0–99 chỉ **+0.048** (+1%) còn phân vị 100 là **+0.925**. Nói cách khác, nếu bỏ mẫu rộng nhất ở mỗi mốc thì S95 của hai mô hình gần như bằng nhau, và các thống kê đuôi theo mẫu (phân vị 90, 99, 99.9, số mẫu rộng bất thường) của sparsemax còn **tốt hơn** K = 3. Với S68, sparsemax tốt hơn ở cả phân vị 0–99 lẫn phân vị 100.
 
 **Bước 2. Chênh lệch tập trung ở một mốc: 2.4 giây.** Đóng góp của phân vị 100 vào điểm S95, theo mốc:
 

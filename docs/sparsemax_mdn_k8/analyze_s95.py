@@ -32,7 +32,7 @@ STEPS = [7, 15, 23, 31, 39, 47]
 
 
 def decompose(areas, hor, dt, fh):
-    """Điểm chính thức = trung bình 101 phân vị (0..100) của diện tích theo từng mốc; tách thân (0..99) và phân vị 100."""
+    """Điểm chính thức = trung bình 101 phân vị (0..100) của diện tích theo từng mốc; tách phần đóng góp của phân vị 0..99 và của phân vị 100 (giá trị lớn nhất)."""
     rows = []
     for i, h in enumerate(hor):
         q = np.percentile(areas[:, i], np.arange(0, 101))
