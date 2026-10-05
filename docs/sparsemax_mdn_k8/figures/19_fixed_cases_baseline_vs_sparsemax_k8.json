@@ -1,0 +1,39 @@
+{
+  "script": "docs/sparsemax_mdn_k8/compare_fixed_cases.py",
+  "image": "docs/sparsemax_mdn_k8/figures/19_fixed_cases_baseline_vs_sparsemax_k8.png",
+  "baseline_inputs": "results/trained_models/base_mdn/imptc/default_peds_imptc/runs/imptc_baseline_seed2024/fixed_samples/inputs.npz",
+  "baseline_predictions": "results/trained_models/base_mdn/imptc/default_peds_imptc/runs/imptc_baseline_seed2024/fixed_samples/predictions/best.npz",
+  "sparsemax_checkpoint": "results/trained_models/sparsemax_mdn/imptc/sparsemax_k8_peds_imptc/runs/sparsemax_k8_v2_seed2024/checkpoints/best.pt",
+  "checkpoint_sha256": "f984f06ebd1f66e9371977146279a90161ed37a9074a04659c380605e943727f",
+  "selection": "Same argsort and [0, len//2, -1] as baseline create_figures.py, among eight fixed validation samples",
+  "metric": "Mean Euclidean error of mixture mean across all 48 future steps; not official minADE20",
+  "cases": [
+    {
+      "fixed_index": 6,
+      "sample_id": "eval:imptc_0_00323_00188:15308",
+      "baseline_mean_path_ade_m": 0.045493584126234055,
+      "sparsemax_mean_path_ade_m": 0.01957729645073414,
+      "sparsemax_active_k_mean": 4.0,
+      "sparsemax_active_k_min": 2,
+      "sparsemax_active_k_max": 6
+    },
+    {
+      "fixed_index": 7,
+      "sample_id": "eval:imptc_0_00361_00094:17398",
+      "baseline_mean_path_ade_m": 0.3489631712436676,
+      "sparsemax_mean_path_ade_m": 0.32312431931495667,
+      "sparsemax_active_k_mean": 4.041666666666667,
+      "sparsemax_active_k_min": 2,
+      "sparsemax_active_k_max": 7
+    },
+    {
+      "fixed_index": 2,
+      "sample_id": "eval:imptc_0_00095_00027:4623",
+      "baseline_mean_path_ade_m": 0.799767792224884,
+      "sparsemax_mean_path_ade_m": 0.7615421414375305,
+      "sparsemax_active_k_mean": 2.5625,
+      "sparsemax_active_k_min": 2,
+      "sparsemax_active_k_max": 4
+    }
+  ]
+}

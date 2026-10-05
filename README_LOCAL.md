@@ -276,3 +276,12 @@ results/comparisons/eth_ucy_m_ablation/
 ## Công thức MDN hiện tại
 
 Đã khôi phục công thức legacy. Phiên bản paper được lưu trong commit `29485b8`; xem [ghi chú khôi phục](docs/MDN_PARAMETERIZATION.md).
+
+## Sparsemax K=8 trên fold ETH (2026-10-05)
+
+Run 2500 epoch, seed 2024, GPU 0; cấu hình ETH gốc với K=8. Kết quả riêng tại `results/sparsemax_k8_eth_20261005_135916_9408dba9`, có smoke review, cấu hình và launcher; 8 mẫu validation cố định, NLL/LR mỗi epoch, checkpoint best/last/final và định kỳ, metric validation mỗi 250 epoch. Không tự chạy test.
+
+```bash
+tmux attach -t sparsemax_eth_k8_20261005_135916_9408dba9
+tail -f results/sparsemax_k8_eth_20261005_135916_9408dba9/train_console.log
+```

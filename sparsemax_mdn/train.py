@@ -200,6 +200,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--config')
+    parser.add_argument('--target', choices=('imptc', 'eth'), default='imptc')
     parser.add_argument('--gpu', default='0')
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--smoke', action='store_true')
@@ -207,15 +208,17 @@ def main():
     args = parser.parse_args()
     if args.full:
         check_full_allowed()
+    if args.target != 'imptc' and not args.config:
+        parser.error('--config is required for targets other than imptc')
     name = args.config or DEFAULT_CONFIGS['smoke' if args.smoke else 'full']
     if not name.endswith('.json'):
         name += '.json'
-    config_path = CONFIG_DIR / name
+    config_path = ROOT / 'sparsemax_mdn/configs' / args.target / name
     if args.smoke and json.loads(config_path.read_text())['train_params']['train_epochs'] > 3:
         raise ValueError('Smoke is limited to <= 3 epochs')
     os.environ['MDN_RUN_ID'] = args.run_id
-    cfg = ConfigLoader(config_path=str(config_path), target='imptc', with_log=True, with_print=True,
-                       name=name[:-5], model_arch='sparsemax_mdn', type='training')
+    cfg = ConfigLoader(config_path=str(config_path), target=args.target, with_log=True, with_print=True,
+                       name=Path(name).stem, model_arch='sparsemax_mdn', type='training')
     if cfg.model_params.get('mdn_parameterization', {'mode': 'legacy'}) != {'mode': 'legacy'}:
         raise ValueError('Sparsemax MDN requires the legacy MDN parameterization')
     print(training(cfg=cfg, gpu_id=args.gpu))

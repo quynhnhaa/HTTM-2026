@@ -180,7 +180,7 @@ Theo giao thức, tập test được dùng **đúng một lần cho run này**,
 
 | Metric (test) | sparsemax K_max = 8 | baseline K = 3 |
 |---|---:|---:|
-| NLL ↓ | **−1.122** | −1.092 |
+| NLL ↓ | **−1.121** | −1.092 |
 | Ravg (%) ↑ | **98.07** | 97.47 |
 | Rmin (%) ↑ | **95.66** | 94.07 |
 | minADE20 (m) ↓ | **0.457** | 0.464 |

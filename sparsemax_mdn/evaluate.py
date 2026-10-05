@@ -236,6 +236,7 @@ def build_parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--config')
+    parser.add_argument('--run-dir', type=Path, help='Explicit run directory, including runs outside the default result root')
     parser.add_argument('--checkpoint', default='best')
     parser.add_argument('--split', required=True, choices=SPLITS)
     parser.add_argument('--exact-pi', action='store_true')
@@ -258,7 +259,11 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     validate_checkpoint(args.checkpoint)
     check_split_request(args.split, args.confirm_test_once, args.limit)  # arguments only, nothing touched yet
-    run = locate_run(args.run_id, args.config)  # directory lookup only
+    run = args.run_dir.resolve() if args.run_dir else locate_run(args.run_id, args.config)
+    if args.run_dir:
+        manifest = json.loads((run / 'run_manifest.json').read_text())
+        if manifest['run_id'] != args.run_id:
+            raise ValueError('--run-id does not match --run-dir manifest')
     eval_dir = run / 'evaluation'
     check_split_request(args.split, args.confirm_test_once, args.limit, eval_dir)
     base_hashes.verify()
@@ -271,9 +276,21 @@ def main(argv=None):
             json.dump({'run_id': args.run_id, 'checkpoint': args.checkpoint, 'exact_pi': args.exact_pi}, f)
 
     config_name = run.parents[1].name
-    cfg = ConfigLoader(str(CONFIG_DIR / f'{config_name}.json'), 'imptc', False, False, config_name,
-                       'sparsemax_mdn', 'testing' if args.split == 'test' else 'eval')
-    saved = torch.load(run / 'checkpoints' / f'{args.checkpoint}.pt', map_location='cpu', weights_only=False)
+    if args.run_dir:
+        resolved = json.loads((run / 'resolved_config.json').read_text())
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as config_file:
+            json.dump(resolved, config_file)
+            config_file.flush()
+            cfg = ConfigLoader(config_file.name, manifest['dataset'], False, False, config_name,
+                               'sparsemax_mdn', 'testing' if args.split == 'test' else 'eval')
+    else:
+        cfg = ConfigLoader(str(CONFIG_DIR / f'{config_name}.json'), 'imptc', False, False, config_name,
+                           'sparsemax_mdn', 'testing' if args.split == 'test' else 'eval')
+    # Known NumPy containers in locally generated RNG/data-loader state. Keep
+    # weights_only enabled instead of allowing arbitrary pickle execution.
+    with torch.serialization.safe_globals([np._core.multiarray._reconstruct, np.ndarray, np.dtype,
+                                           np.dtypes.UInt32DType, np.dtypes.Float64DType, np.dtypes.Int64DType]):
+        saved = torch.load(run / 'checkpoints' / f'{args.checkpoint}.pt', map_location='cpu', weights_only=True)
     if saved.get('architecture') != ARCH:
         raise ValueError(f"Unexpected architecture {saved.get('architecture')!r}, expected {ARCH!r}")
     saved_params = saved.get('resolved_config', {}).get('model_params')
