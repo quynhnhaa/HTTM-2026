@@ -19,10 +19,6 @@ Chạy từ thư mục gốc repo. Dùng run ID mới, vì các run legacy trư�
 .venv/bin/python base_mdn/train.py \
   -c default_peds_imptc.json \
   --run-id imptc_baseline_legacy_rerun_seed2024 -l -p
-
-.venv/bin/python attention_mdn/train.py \
-  -c attention_peds_imptc.json \
-  --run-id imptc_attention_legacy_rerun_seed2024 -l -p
 ```
 
 Không có training nào được bắt đầu khi khôi phục công thức. Công thức cũ có thể gặp lại vấn đề covariance gần suy biến; không áp dụng thay đổi ổn định hóa khác trong lần khôi phục này.

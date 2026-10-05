@@ -6,3 +6,4 @@ data/
 **/.DS_Store
 slides/
 Reliable Probabilistic Human Trajectory Prediction for Autonomous Applications.pptx
+!docs/sparsemax_mdn_k8/data/
