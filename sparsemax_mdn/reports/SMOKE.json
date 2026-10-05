@@ -1,0 +1,61 @@
+{
+  "status": "passed",
+  "run_id": "sparsemax_smoke_seed2024",
+  "epochs": 3,
+  "checks": {
+    "base_hashes_unchanged": true,
+    "history_rows": 3,
+    "checkpoints": [
+      "epoch_0001",
+      "epoch_0002",
+      "epoch_0003",
+      "best",
+      "last",
+      "final"
+    ],
+    "prediction_files": [
+      "epoch_0001",
+      "epoch_0002",
+      "epoch_0003",
+      "best",
+      "final"
+    ],
+    "official_metric_files": [
+      "epoch_0001.json",
+      "epoch_0002.json",
+      "epoch_0003.json"
+    ],
+    "official_metric_keys": [
+      "ravg_percent",
+      "rmin_percent",
+      "s68_m2_per_s",
+      "s95_m2_per_s",
+      "asaee_m_per_s",
+      "minade20_m",
+      "minfde20_m"
+    ]
+  },
+  "finding_zero_pi_in_smoke": false,
+  "finding_text": "NO exactly-zero pi in any smoke prediction (model still dense after a few epochs); zero handling is covered by unit tests, not by this smoke run",
+  "last_row": {
+    "run_id": "sparsemax_smoke_seed2024",
+    "epoch": "3",
+    "train_nll": "5.962315082550049",
+    "validation_nll": "6.484920501708984",
+    "learning_rate": "0.00033339999999999997",
+    "duration_seconds": "0.23",
+    "train_sample_count": "379",
+    "validation_sample_count": "191",
+    "gpu_peak_memory_bytes": "0",
+    "is_best": "False",
+    "checkpoint_saved": "True",
+    "full_metrics_evaluated": "True",
+    "finite": "True",
+    "timestamp_utc": "2026-10-03T23:52:21.780425+00:00",
+    "mean_support_size": "8.0",
+    "fraction_full_support": "1.0",
+    "dead_components": "0"
+  },
+  "full_training_started": false,
+  "quality_conclusion": "None; a few-epoch smoke run says nothing about model quality"
+}

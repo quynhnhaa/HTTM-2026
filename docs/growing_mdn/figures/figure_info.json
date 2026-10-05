@@ -1,0 +1,34 @@
+{
+  "k8": {
+    "neff_min": 1.814747016894245,
+    "neff_mean": 4.073336057015493,
+    "neff_max": 6.421589376549719,
+    "cover95_mean": 4.471354166666667,
+    "cover95_max": 6
+  },
+  "split_ratio": 0.001759014497675857,
+  "live": {
+    "epochs": 800,
+    "k_now": 3,
+    "val_last": -0.8173965176149925,
+    "split": {
+      "epoch": 400,
+      "k_before": 1,
+      "k_after": 2,
+      "split_component": 0,
+      "component_scores": [
+        -0.19134766079449197
+      ],
+      "validation_nll_before": -0.0671664754709714,
+      "validation_nll_after": 133.67989755936895,
+      "split_delta": 0.05,
+      "timestamp_utc": "2026-10-03T21:55:44.789944+00:00"
+    }
+  },
+  "v1v2": {
+    "v2_epochs": 2600
+  },
+  "v2curve": {
+    "selected_k": 11
+  }
+}

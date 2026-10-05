@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "epochs": 3,
+  "validation_samples": 19148,
+  "fixed_samples": 8,
+  "parameter_count": 8224,
+  "cv_plus_residual_equals_final_mu": true,
+  "continuation_smoke": {
+    "epochs": 2,
+    "adam_step_increment": 4
+  },
+  "full_protocol_matches_stable_baseline": true,
+  "fixed_8_metric_smoke": {
+    "evaluator_version": "stable_v2_ecdf_rng",
+    "evaluation_seed": 2024,
+    "sample_count": 8,
+    "inference_ms_per_batch": 2.348041976802051,
+    "ravg_percent": 72.80775577557756,
+    "rmin_percent": 13.0,
+    "reliability_by_horizon_percent": [
+      51.85643564356437,
+      62.5,
+      71.03960396039604,
+      74.6930693069307,
+      87.16831683168317,
+      89.58910891089108
+    ],
+    "s95_m2_per_s": 11.798873579363173,
+    "s68_m2_per_s": 4.5955139509110206,
+    "asaee_m_per_s": 0.34259888529777527,
+    "minade20_m": 0.8370000123977661,
+    "minfde20_m": 0.6669999957084656
+  },
+  "limitations": [
+    "Three epochs do not establish prediction quality or long-run stability.",
+    "Smoke: 189 train samples/epoch, batch128, MC64; fixed metric mesh1m."
+  ]
+}

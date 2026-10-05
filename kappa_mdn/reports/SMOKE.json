@@ -1,0 +1,58 @@
+{
+  "status": "passed",
+  "run_id": "kappa_smoke_seed2024",
+  "epochs": 3,
+  "checks": {
+    "base_hashes_unchanged": true,
+    "history_rows": 3,
+    "checkpoints": [
+      "epoch_0001",
+      "epoch_0002",
+      "epoch_0003",
+      "best",
+      "last",
+      "final"
+    ],
+    "kappa_max_move_from_init": 0.11373043060302734,
+    "optimizer_groups_lr_ratio": 10.0,
+    "prediction_files": [
+      "epoch_0001",
+      "epoch_0002",
+      "epoch_0003",
+      "best",
+      "final"
+    ],
+    "official_metric_files": [
+      "epoch_0001.json",
+      "epoch_0002.json",
+      "epoch_0003.json"
+    ]
+  },
+  "last_row": {
+    "run_id": "kappa_smoke_seed2024",
+    "epoch": "3",
+    "train_nll": "6.262301683425903",
+    "validation_nll": "6.503107070922852",
+    "learning_rate": "0.00033339999999999997",
+    "duration_seconds": "0.28",
+    "train_sample_count": "379",
+    "validation_sample_count": "191",
+    "gpu_peak_memory_bytes": "0",
+    "is_best": "False",
+    "checkpoint_saved": "True",
+    "full_metrics_evaluated": "True",
+    "finite": "True",
+    "timestamp_utc": "2026-10-04T07:37:03.980659+00:00",
+    "train_objective": "6.38245964050293",
+    "train_penalty": "0.1201578862965107",
+    "tau": "0.10000000149011612",
+    "kappa_mean": "12.113455772399902",
+    "kappa_min": "12.113154411315918",
+    "kappa_max": "12.113730430603027",
+    "mean_K": "12.0",
+    "fraction_at_k_max": "0.0",
+    "soft_open_count": "12.018362998962402"
+  },
+  "full_training_started": false,
+  "quality_conclusion": "None; a few-epoch smoke run says nothing about model quality"
+}

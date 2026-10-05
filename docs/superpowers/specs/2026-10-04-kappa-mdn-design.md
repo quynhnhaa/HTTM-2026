@@ -1,0 +1,36 @@
+# Kappa MDN (K as a learnable parameter) — Design Spec
+
+Date: 2026-10-04 (revision 2 below). Status: direction chosen by the user in chat ("cách 1", a separate directory, no subagents). This spec fixes the protocol before any training. Everything is implemented and reviewed by the controller itself (no subagents).
+
+## 1. Goal and claim boundary
+Make the number of mixture components a **parameter of the model** instead of a fixed constant. An integer cannot receive a gradient, so K is relaxed to a real number `kappa` per forecast step (48 numbers). Components are ordered (component 1 most important). Component `j` has a soft gate that is open when `j <= kappa` and closed otherwise; `kappa` is learned with the NLL plus a price per open component. At inference `K(t) = round(kappa_t)`.
+
+Claim boundary: K is one learned number per forecast step, the same for every input sample (it is **not** per-sample). Per-sample adaptivity is what `sparsemax_mdn` offers. Not claimed to be new; it is close to `gated_mdn` (independent gates) but parametrized by one ordered scalar per step, and kept as a separate experiment. `K_max`, the price lambda, and the gate softness schedule are design constants fixed in advance.
+
+## 2. Method (exact definition)
+- Backbone and heads identical to the baseline: LSTM (hidden 8) -> `fc` -> per step `6 * K_max` raw values (mu_x, mu_y, log sigma_x, log sigma_y, rho_pre, pi_logit); legacy decoder, Sigma = [[sx^2, rho sx sy],[rho sx sy, sy^2]], mixture independent per forecast step.
+- New parameter `kappa_logit` of shape `[48]`; `kappa = 1 + (K_max - 1) * sigmoid(kappa_logit)` always lies in [1, K_max]; initial `kappa = 12.0` (revision notes in section 3).
+- Training (soft gates): `gate[t, j] = sigmoid((kappa[t] - j + 0.5) / tau)` for `j = 1..K_max`. Mixture weights in training: `w[t, j] = softmax_j(pi_logit)[t, j] * gate[t, j]`, NOT renormalised (implemented as log_softmax + logsigmoid and read by the loss as log-weights). Closing a component that carries mass removes probability mass and raises the NLL, so the network cannot compensate a closed gate by rescaling logits. (v1 renormalised after the gate, which allowed exactly that compensation.)
+- Inference and validation (hard gates): `K(t) = clamp(round(kappa[t]), 1, K_max)`; components `j <= K(t)` use their logits, others get weight exactly 0 (finite sentinel -1e9 in the raw output so the baseline decoder's softmax gives exact zeros and all baseline code runs unchanged).
+- Objective (training only): `NLL + lambda * mean_t( sum_j gate[t, j] )`, with the NLL the exact mixture negative log-likelihood (mean over samples and steps). The penalty is the soft count of open components, so a component stays open only if it reduces the NLL by more than `lambda` nats.
+- Validation NLL, best-checkpoint selection and all reported metrics use the pure NLL with hard gates (the model as deployed).
+
+## 3. Pre-declared configuration (no tuning, no selection among runs)
+- `K_max = 16`, `kappa_init = 12.0`, per-step `kappa` (48 values).
+- Revision note (2026-10-04, before any full training run): `kappa_init` was first declared as 8.0 (K_max/2). It was changed to 12.0 before the first full run because with 8.0 components 9..16 start almost closed and receive little learning signal, biasing the outcome toward small K from the starting point; with 12.0 the useful components start open and the penalty prunes. Reasoned from the formulas, not tested. No training result existed at the time of the change; the smoke test was re-run. Sensitivity to the initial value is not measured.
+- `lambda = 0.01` nats per open component (per forecast step). Rationale: in the baseline each extra component between K = 3 and K = 8 lowered the test NLL by about 0.02 nat, so 0.01 keeps components that help by more than that. This is a declared constant, not a tuned value; its effect on K is reported as an analysis, not used to choose the result.
+- Gate softness: `tau` decreases linearly from 1.0 at epoch 1 to 0.1 at epoch 1250 and stays at 0.1 afterwards.
+- `kappa` uses 10 times the base learning rate (Adam 1e-3 -> 1e-2, same LinearLR factors); all other parameters follow the baseline.
+- Everything else equals `default_peds_imptc.json` with `num_gaussians = 16`: 2500 epochs, batch 4096, train/validation reduction 0.5, seed 2024, the 8 fixed validation samples, official metrics every 250 epochs. One training run; best checkpoint by (reduced) validation NLL as in the baseline.
+
+## 4. Success criteria (declared before training)
+Primary: compared with baseline K = 3 and K = 8 and with the sparsemax run (same protocol, one seed), official metrics NLL, Ravg, Rmin non-inferior and S68/S95 not worse. Secondary: `kappa` moves away from its initial value and converges to a stable K(t) profile below K_max; K(t) is not constant across horizon steps. If K collapses to 1 or stays at the initial value, that is reported as a failure of the mechanism, not hidden. The test split is used once, only after the user agrees; tuning after seeing test is not allowed.
+
+## 5. Risks (monitor and report)
+Mismatch between soft gates (training) and hard gates (inference) while `tau` is large; premature collapse to a small K or no movement of `kappa`; `kappa` receiving little gradient when the gates saturate; dependence of the final K on `lambda`; the same K for every sample; components must become ordered by importance (index 1 most useful) for the gate scheme to be meaningful; narrow-sigma components that overfit training clusters are not addressed; a closed hard gate gives weight exactly 0 (the rare-event issue found with sparsemax applies at inference).
+
+## 6. Artifacts and analyses
+Per epoch: train NLL (pure), penalty, objective, validation NLL, learning rate, `kappa` min/mean/max, mean K, fraction of steps at K_max, `tau`, soft open count. Fixed-sample predictions store `kappa` and `support_size`. A read-only analysis reports `kappa` and `K(t)` per forecast step, the ordering check (weight mass of each component index), and the soft-versus-hard gap on validation NLL.
+
+## 7. Revision 2 (after a failed first run, before any accepted run)
+The first full run (`kappa_k16_seed2024`, init 8.0, gate inside the softmax, kappa a free real parameter) was stopped at epoch 247 and kept as `kappa_k16_init8_ABORTED_collapse`. Observed in its `history.csv`: kappa mean 7.8 (epoch 1), 0.96 (50), -2.3 (100), -4.8 (247); mean K = 1.0 from epoch 150; validation NLL (hard gates) 250 to 580 while train NLL (soft gates) stayed near -1.0. Hypothesis from the formulas (not separately tested): after renormalisation the logits can compensate the gates, so the NLL gives no force against closing, while the penalty always pushes kappa down and kappa was unbounded. Changes: (1) kappa bounded to [1, K_max] by a sigmoid reparametrisation; (2) training weights = softmax * gate without renormalisation, so a closed gate costs NLL. Everything else (K_max 16, lambda 0.01, tau schedule, kappa lr x10, init 12.0, seed 2024) is unchanged. Known limits: while tau is large the train loss is a surrogate (weights sum to less than 1) and train and eval differ; the new design is untested on real data and is monitored in the first epochs of the next full run (stop and report if kappa collapses or validation NLL diverges again).

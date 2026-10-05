@@ -1,0 +1,42 @@
+[
+  {
+    "checkpoint": "results/trained_models/growing_mdn/imptc/growing_peds_imptc/runs/growing_k12_seed2024/checkpoints/phase_k01.pt",
+    "k_before": 1,
+    "split_component": 0,
+    "validation_nll_before": -0.06714867255493846,
+    "delta_rel": 0.05,
+    "sigma_median_min": 0.0007887406973168254,
+    "sigma_median_max": 1.3396371603012085,
+    "offset_abs_min": 3.9437034865841275e-05,
+    "offset_abs_median": 0.020432032644748688,
+    "offset_abs_max": 0.06698185801506043,
+    "absolute_0.05": {
+      "validation_nll_after": 133.87535989162492,
+      "delta_nll": 133.94250856417986
+    },
+    "relative": {
+      "validation_nll_after": -0.06740386776956071,
+      "delta_nll": -0.00025519521462225025
+    }
+  },
+  {
+    "checkpoint": "results/trained_models/growing_mdn/imptc/growing_peds_imptc/runs/growing_k12_seed2024/checkpoints/phase_k02.pt",
+    "k_before": 2,
+    "split_component": 1,
+    "validation_nll_before": -0.4254937765056414,
+    "delta_rel": 0.05,
+    "sigma_median_min": 0.004108957480639219,
+    "sigma_median_max": 1.8642486333847046,
+    "offset_abs_min": 0.00020544787403196097,
+    "offset_abs_median": 0.03189978301525116,
+    "offset_abs_max": 0.09321243166923524,
+    "absolute_0.05": {
+      "validation_nll_after": 2.5208259483630857,
+      "delta_nll": 2.946319724868727
+    },
+    "relative": {
+      "validation_nll_after": -0.42547720326264415,
+      "delta_nll": 1.6573242997253157e-05
+    }
+  }
+]
