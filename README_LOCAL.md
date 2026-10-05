@@ -1,6 +1,8 @@
 # Thiết lập cục bộ cho MDN Trajectory Forecasting
 
-Tài liệu này dành cho môi trường của nhóm và không thay đổi `README.md` gốc.
+Tài liệu này hướng dẫn chạy lại bài nộp của nhóm và không thay đổi `README.md` gốc.
+
+**Phạm vi của bài nộp:** dữ liệu IMPTC, baseline LSTM-MDN với K = 3 (`base_mdn/`) và cải tiến sparsemax với K_max = 8 (`sparsemax_mdn/`). 
 
 ## 1. Môi trường Python
 
@@ -20,11 +22,13 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-local.txt
 ```
 
-Không cần cài CUDA Toolkit (`nvcc`) riêng vì PyTorch wheel mang theo CUDA runtime. Máy vẫn cần NVIDIA driver tương thích.
+Không cần cài CUDA Toolkit (`nvcc`) riêng vì PyTorch wheel mang theo CUDA runtime. Máy vẫn cần NVIDIA driver tương thích. Các lệnh dưới đây chạy được trên CPU bằng cách dùng `--gpu -1` (chậm hơn nhiều).
 
-## 2. Bố trí dữ liệu
+## 2. Dữ liệu và kết quả đi kèm
 
-Mặc định, dữ liệu được đọc từ `data/trajdata` bên trong repo. Ví dụ IMPTC:
+Thư mục `data/` và `results/` **không nằm trong git** (đã `.gitignore`); chúng được nộp riêng và phải đặt ở thư mục gốc của repo.
+
+**Dữ liệu IMPTC** (mặc định đọc từ `data/trajdata` bên trong repo):
 
 ```text
 data/trajdata/ego/imptc/train/ego_samples.pkl
@@ -32,56 +36,36 @@ data/trajdata/ego/imptc/eval/ego_samples.pkl
 data/trajdata/ego/imptc/test/ego_samples.pkl
 ```
 
-Có thể đặt dữ liệu ở nơi khác mà không sửa JSON:
+**Kết quả đã huấn luyện**, cần có để chạy lại phân tích và sinh hình:
+
+| Thư mục | Nội dung |
+|---|---|
+| `results/trained_models/base_mdn/imptc/default_peds_imptc/` | Baseline K = 3, run `imptc_baseline_seed2024` |
+| `results/trained_models/sparsemax_mdn/imptc/sparsemax_k8_peds_imptc/` | Sparsemax K_max = 8, run `sparsemax_k8_v2_seed2024` |
+| `results/trained_models/sparsemax_mdn/baseline_persample/K3/` | Số liệu từng mẫu của baseline K = 3 trên tập test |
+| `results/ablations/imptc_num_gaussians/ablation.json` | Số liệu test của baseline K = 3 được tài liệu trích dẫn |
+
+Có thể đặt dữ liệu và kết quả ở nơi khác mà không sửa JSON:
 
 ```bash
 export MDN_DATA_ROOT=/duong/dan/toi/trajdata
-```
-
-Kết quả mặc định được ghi vào `results/trained_models`. Có thể đổi bằng:
-
-```bash
 export MDN_RESULT_ROOT=/duong/dan/toi/trained_models
 ```
 
-Nếu bật trực quan hóa trên bản đồ, map mặc định nằm dưới `data/imptc` và
-`data/ind`. Có thể đặt thư mục gốc khác bằng `MDN_MAP_ROOT`.
-
-## 3. Chạy train và test
-
-Các lệnh có thể chạy từ bất kỳ thư mục hiện hành nào:
+## 3. Kiểm chứng nhanh (không cần dữ liệu hay GPU)
 
 ```bash
-source .venv/bin/activate
-python base_mdn/train.py --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
-python base_mdn/testing.py --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
+# 67 unit test của sparsemax_mdn
+.venv/bin/python -m unittest discover -s sparsemax_mdn/tests -t .
+# base_mdn không bị sửa so với bản chụp hash
+.venv/bin/python -m sparsemax_mdn.base_hashes --check
 ```
 
-Khi test, pipeline mặc định dùng checkpoint `best.pt` được chọn theo validation
-NLL. Nếu config chỉ có một run thì run đó được nhận diện tự động. Khi có nhiều
-run, chỉ rõ run để tránh chọn nhầm:
+## 4. Baseline K = 3 (`base_mdn/`)
 
-```bash
-.venv/bin/python base_mdn/testing.py \
-  --target imptc --configs default_peds_imptc.json --gpu 0 \
-  --run-id imptc_baseline_seed2024 --log --print
-```
+Các lệnh chạy từ thư mục gốc repo. Cấu hình baseline là `base_mdn/configs/imptc/default_peds_imptc.json` (K = 3, LSTM hidden 8, 2500 epoch, seed 2024). Run `imptc_baseline_seed2024` **đã có sẵn trong `results/`**, không cần huấn luyện lại; chỉ chạy lại khi muốn tái lập, và phải dùng run ID mới vì run cũ đã tồn tại.
 
-Chỉ dùng `--checkpoint /duong/dan/checkpoint.pt` khi chủ động muốn đánh giá một
-checkpoint khác như `final.pt` hoặc checkpoint legacy. Giá trị này ghi đè
-`--run-id` và `MDN_RUN_ID`.
-
-Trước khi train, cần đặt đủ các file `ego_samples.pkl` đúng cấu trúc hoặc khai báo `MDN_DATA_ROOT`.
-
-## 4. Kiểm chứng trước khi train baseline
-
-Chạy unit tests:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-Chạy smoke test cho checkpoint, history và output của 8 fixed samples:
+Smoke test nhỏ (chỉ kiểm tra kỹ thuật, không dùng metric của nó làm kết quả):
 
 ```bash
 MDN_RUN_ID=smoke_protocol_v1 \
@@ -89,18 +73,42 @@ MDN_RUN_ID=smoke_protocol_v1 \
   --target imptc --configs smoke_peds_imptc.json --gpu 0 --log --print
 ```
 
-Chạy smoke test cực nhỏ cho toàn bộ metric pipeline:
+Huấn luyện đầy đủ (chỉ khi cần tái lập):
 
 ```bash
-MDN_RUN_ID=smoke_metrics_v1 \
+MDN_RUN_ID=imptc_baseline_rerun_seed2024 \
   .venv/bin/python base_mdn/train.py \
-  --target imptc --configs metric_smoke_peds_imptc.json --gpu 0 --log --print
+  --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
 ```
 
-Hai file `smoke_*.json` chỉ dùng để kiểm tra kỹ thuật. Không dùng metric từ các
-run này làm kết quả thực nghiệm hoặc so sánh với paper.
+Đánh giá trên tập test bằng checkpoint `best.pt` (chọn theo validation NLL). Khi config có nhiều run, chỉ rõ run để tránh chọn nhầm:
 
-Mỗi run có artifact riêng tại:
+```bash
+.venv/bin/python base_mdn/testing.py \
+  --target imptc --configs default_peds_imptc.json --gpu 0 \
+  --run-id imptc_baseline_seed2024 --log --print
+```
+
+Chỉ dùng `--checkpoint /duong/dan/checkpoint.pt` khi chủ động muốn đánh giá một checkpoint khác như `final.pt`. Giá trị này ghi đè `--run-id` và `MDN_RUN_ID`.
+
+Resume: giữ nguyên `MDN_RUN_ID` và file config ban đầu, rồi chỉ rõ checkpoint (có `MDN_RESUME_CHECKPOINT` là đủ để bật chế độ resume):
+
+```bash
+MDN_RUN_ID=imptc_baseline_rerun_seed2024 \
+MDN_RESUME_CHECKPOINT="$PWD/results/trained_models/base_mdn/imptc/default_peds_imptc/runs/imptc_baseline_rerun_seed2024/checkpoints/last.pt" \
+  .venv/bin/python base_mdn/train.py \
+  --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
+```
+
+Resume tiếp tục từ epoch hoàn tất gần nhất và khôi phục model, optimizer, scheduler, RNG, best validation state, history và thứ tự dữ liệu train; epoch dở dang chạy lại từ đầu.
+
+Vẽ đồ thị NLL train/validation của baseline (chỉ đọc `history.csv`, không train hay đánh giá):
+
+```bash
+.venv/bin/python base_mdn/plot_training_history.py
+```
+
+Mỗi run có artifact riêng:
 
 ```text
 results/trained_models/base_mdn/imptc/<config>/runs/<run_id>/
@@ -115,164 +123,51 @@ results/trained_models/base_mdn/imptc/<config>/runs/<run_id>/
     └── predictions/
 ```
 
-Các prediction `.npz` lưu cả output thô và các tham số đã decode:
-`pi`, `mu`, `sigma`, `rho`, `covariance`.
+Các file prediction `.npz` lưu cả đầu ra thô và các tham số đã giải mã: `pi`, `mu`, `sigma`, `rho`, `covariance`.
 
-## 5. Baseline chính thức và resume
+## 5. Sparsemax K_max = 8 (`sparsemax_mdn/`)
 
-Không chạy lệnh dưới đây trước khi nhóm duyệt artifact smoke, dung lượng đĩa và
-thời gian dự kiến. Config baseline vẫn là `default_peds_imptc.json`.
+Cải tiến chỉ thay softmax của trọng số π bằng sparsemax (K_max = 8); mọi thứ khác giữ như baseline. Cấu hình mặc định là `sparsemax_mdn/configs/imptc/sparsemax_k8_peds_imptc.json`; run đã huấn luyện là `sparsemax_k8_v2_seed2024`. Mô tả chi tiết: [sparsemax_mdn/README.md](sparsemax_mdn/README.md).
 
 ```bash
-MDN_RUN_ID=imptc_baseline_seed2024 \
-  .venv/bin/python base_mdn/train.py \
-  --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
+# smoke (CPU) rồi review; --full chỉ chạy được khi reports/SMOKE.json có status passed
+.venv/bin/python -m sparsemax_mdn.train --smoke --gpu -1 --run-id sparsemax_smoke_seed2024
+.venv/bin/python -m sparsemax_mdn.review_smoke
+
+# huấn luyện đầy đủ (chỉ khi cần tái lập; dùng run ID mới)
+.venv/bin/python -m sparsemax_mdn.train --full --gpu 0 --run-id sparsemax_k8_rerun_seed2024
+
+# phân tích K(x, t) trên validation (không dùng test)
+.venv/bin/python -m sparsemax_mdn.analyze_k --run-id sparsemax_k8_v2_seed2024 \
+  --config sparsemax_k8_peds_imptc --gpu -1
+
+# đánh giá validation của một checkpoint
+.venv/bin/python -m sparsemax_mdn.evaluate --run-id sparsemax_k8_v2_seed2024 \
+  --config sparsemax_k8_peds_imptc --split validation --limit 500 --gpu -1
 ```
 
-Khi resume, giữ nguyên cả `MDN_RUN_ID` và file config ban đầu, rồi chỉ rõ
-checkpoint. Có `MDN_RESUME_CHECKPOINT` là đủ để bật chế độ resume; không cần sửa
-`resume_training` trong JSON:
+Đánh giá trên **tập test chỉ được chạy một lần cho mỗi run** (cần `--confirm-test-once`; file `test_evaluation_started.lock` được tạo trước khi đọc dữ liệu và chặn lần chạy thứ hai). Run `sparsemax_k8_v2_seed2024` đã được đánh giá test một lần, kết quả ở `results/trained_models/sparsemax_mdn/imptc/sparsemax_k8_peds_imptc/runs/sparsemax_k8_v2_seed2024/evaluation/`. Không chạy lại lệnh này trên run đó:
 
 ```bash
-MDN_RUN_ID=imptc_baseline_seed2024 \
-MDN_RESUME_CHECKPOINT="$PWD/results/trained_models/base_mdn/imptc/default_peds_imptc/runs/imptc_baseline_seed2024/checkpoints/last.pt" \
-  .venv/bin/python base_mdn/train.py \
-  --target imptc --configs default_peds_imptc.json --gpu 0 --log --print
+.venv/bin/python -m sparsemax_mdn.evaluate --run-id ID --config CONFIG --split test --confirm-test-once --gpu 0
 ```
 
-Resume tiếp tục từ epoch hoàn tất gần nhất và khôi phục model, Adam optimizer,
-learning-rate scheduler, RNG, best validation state, history và thứ tự train data.
-Nếu tiến trình bị ngắt giữa epoch, epoch dở dang sẽ chạy lại từ đầu. `training.log`
-được nối tiếp thay vì bị xóa.
-
-Checkpoint cũ được tạo trước bản sửa resume không có `data_loader_state` vẫn có
-thể dùng, nhưng chương trình sẽ cảnh báo rằng thứ tự dữ liệu không thể được tái
-lập chính xác. Checkpoint của full baseline mới sẽ có trạng thái này.
-
-## 6. Tài liệu kiểm chứng
-
-- Dataset audit: `reports/data_audit/IMPTC_DATA_AUDIT.md`
-- Sharpness verification: `reports/bug_fixes/SHARPNESS_VERIFICATION.md`
-- Instrumentation verification: `reports/bug_fixes/PIPELINE_INSTRUMENTATION_VERIFICATION.md`
-- Experimental protocol và artifact schema: `EXPERIMENT_PROTOCOL.md`
-
-## 7. Sinh bộ hình sau training
-
-Script chỉ đọc artifact đã lưu, không train hoặc chạy model lại:
+Số liệu sharpness từng mẫu của baseline K = 3 (dùng cùng bộ đánh giá để so sánh đuôi với sparsemax) đã có ở `results/trained_models/sparsemax_mdn/baseline_persample/K3/`. Lệnh tạo trên validation (test cần `--confirm-test-baseline` và cũng chỉ chạy một lần cho mỗi nhãn):
 
 ```bash
-.venv/bin/python base_mdn/visualize_experiment.py
+.venv/bin/python -m sparsemax_mdn.baseline_persample \
+  --baseline-run results/trained_models/base_mdn/imptc/default_peds_imptc/runs/imptc_baseline_seed2024 \
+  --label K3 --split validation --limit 300 --gpu 0
 ```
 
-Mặc định hình được ghi vào thư mục `figures/` của run
-`imptc_baseline_seed2024`. Có thể chọn run, thư mục đầu ra, fixed sample và
-future timestep khác:
+## 6. Công thức MDN
 
-```bash
-.venv/bin/python base_mdn/visualize_experiment.py \
-  --run-dir /duong/dan/toi/run \
-  --output-dir /duong/dan/toi/figures \
-  --sample-id 'eval:imptc_0_00093_00225:4103' \
-  --future-step 48
-```
-
-Xem toàn bộ tùy chọn:
-
-```bash
-.venv/bin/python base_mdn/visualize_experiment.py --help
-```
-
-## 8. So sánh validation-best M=1 và M=3
-
-Sau khi cả hai run hoàn tất, đánh giá hai `best.pt` trên toàn bộ IMPTC test set:
-
-```bash
-.venv/bin/python base_mdn/compare_m1_m3.py --gpu 0
-```
-
-Script xác minh hai resolved config chỉ khác `model_params.num_gaussians`, đặt
-lại cùng evaluation seed trước mỗi model và lưu kết quả tại:
+Cả baseline và sparsemax dùng công thức legacy cho tham số của mỗi Gaussian hai chiều:
 
 ```text
-results/comparisons/imptc_m1_vs_m3/
-├── comparison.json
-├── comparison.csv
-├── config_difference.json
-├── metric_comparison.png
-├── m1/
-└── m3/
+sigma = exp(raw_sigma),   rho = tanh(raw_rho)
+Sigma = [[sigma_x^2,                rho * sigma_x * sigma_y],
+         [rho * sigma_x * sigma_y,  sigma_y^2             ]]
 ```
 
-Có thể dùng `--m1-run`, `--m3-run` và `--output-dir` để chọn artifact khác.
-
-## 9. Tạo Demo 2 — uncertainty theo forecast horizon
-
-Script chỉ đọc prediction thật đã lưu tại `best.pt` của 8 fixed samples, không
-train hoặc chạy model lại:
-
-```bash
-.venv/bin/python base_mdn/create_demo2_horizon_uncertainty.py
-```
-
-Mặc định script vẽ bốn mốc `+1.0`, `+2.0`, `+3.0`, `+4.8` giây, dùng toàn bộ
-GMM `M=3`, vùng 68%/95% theo đúng Monte Carlo confidence-set implementation và
-lưu PNG/PDF/SVG cùng bảng diện tích tại:
-
-```text
-results/trained_models/base_mdn/imptc/default_peds_imptc/
-runs/imptc_baseline_seed2024/figures/demo2/
-```
-
-Trên từng panel, `A68(t)`/`A95(t)` là diện tích của sample và horizon đang vẽ,
-không phải global sharpness score `S68`/`S95`.
-
-## 10. ETH/UCY ablation với M = 1, 2, 3, 5, 8
-
-Thí nghiệm gồm 25 run: 5 giá trị `M` nhân với 5 fold LOO. Mỗi run giữ nguyên
-config repository của fold tương ứng và chỉ đổi `model_params.num_gaussians`.
-Kiểm tra ma trận thí nghiệm trước khi chạy:
-
-```bash
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py prepare
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py status
-```
-
-Chạy toàn bộ training tuần tự trên GPU 0:
-
-```bash
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py train --gpu 0
-```
-
-Lệnh tự bỏ qua run đã hoàn tất và resume run dở từ `last.pt`. Có thể chạy một
-phần nhỏ trước, ví dụ chỉ `M=1` trên fold ETH:
-
-```bash
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py train --gpu 0 --mixtures 1 --folds eth
-```
-
-Sau khi đủ checkpoint, đánh giá `best.pt` trên toàn bộ test split rồi tổng hợp:
-
-```bash
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py evaluate --gpu 0
-.venv/bin/python base_mdn/eth_ucy_m_ablation.py summarize
-```
-
-Metric chính thức gồm `Ravg`, `Rmin`, `S68`, `S95`, `minADE20`, `minFDE20`.
-Giá trị `M` được chọn bằng mean validation NLL qua 5 fold, không chọn bằng test.
-Kết quả và hình được lưu tại:
-
-```text
-results/comparisons/eth_ucy_m_ablation/
-├── experiment_matrix.json
-├── fold_results.csv
-├── mean_results.csv
-├── summary.json
-├── metrics_vs_m.png
-├── accuracy_reliability_tradeoff.png
-├── paper_comparison.png
-└── evaluations/
-```
-
-## Công thức MDN hiện tại
-
-Đã khôi phục công thức legacy. Phiên bản paper được lưu trong commit `29485b8`; xem [ghi chú khôi phục](docs/MDN_PARAMETERIZATION.md).
+Đầu ra thô của mạng có dạng `[B, 48, 6K]`, chia thành sáu khối theo thứ tự `mu_x, mu_y, log sigma_x, log sigma_y, rho_pre, pi_logit`, mỗi khối K số. Baseline chuẩn hóa `pi` bằng softmax; sparsemax thay bằng sparsemax. Mỗi bước dự báo là một hỗn hợp Gaussian hai chiều riêng; code không định nghĩa một hỗn hợp chung cho cả quỹ đạo.
