@@ -15,6 +15,7 @@
 6. [Kết quả](#6-kết-quả-của-run-đã-train-xong)
 7. [Giới hạn và những điều chưa biết](#7-giới-hạn-và-những-điều-chưa-biết)
 8. [Bản đồ file và cách chạy lại](#8-bản-đồ-file-và-cách-chạy-lại)
+9. [Demo chạy trong trình duyệt](#9-demo-chạy-trong-trình-duyệt)
 
 ---
 
@@ -312,3 +313,25 @@ Sparsemax đặt **32% xác suất vào một thành phần rất rộng** (σ k
 .venv/bin/python docs/sparsemax_mdn_k8/generate_beginner_figures.py
 .venv/bin/python docs/sparsemax_mdn_k8/generate_figures.py
 ```
+
+---
+
+## 9. Demo chạy trong trình duyệt
+
+[demo/index.html](demo/index.html) — nhấp đúp để mở, không cần máy chủ.
+
+Vẽ 3,2 giây quá khứ bằng chuột (hoặc chọn một trong 8 mẫu thật), mô hình chạy
+**ngay trong trang** và trả về hỗn hợp Gaussian cho 48 mốc tương lai. Nhúng sẵn
+6 checkpoint: softmax M = 1, 2, 3, 5, 8 và **sparsemax K_max = 8 của run
+`sparsemax_k8_v2_seed2024`**. Chuyển qua lại giữa chúng để thấy trực tiếp
+sparsemax đưa các thành phần thừa về **đúng bằng 0**, và K đổi theo mẫu lẫn
+theo mốc thời gian.
+
+Trọng số được bóc thẳng từ `best.pt` (không cần PyTorch — file `.pt` là zip chứa
+pickle). Forward pass viết lại bằng JavaScript và **đã đối chiếu với file `.npz`
+mà repo lưu**: µ lệch tối đa **15,7 mm** (do repo chạy GPU ở độ chính xác TF32),
+và số lượng **số 0 thật sự khớp tuyệt đối 1 662 / 3 072**. Chạy
+`node demo/tools/verify.js` để kiểm lại.
+
+Cách dựng lại, quy ước tiền xử lý, cách chọn mẫu và các giới hạn: xem
+[demo/README.md](demo/README.md).

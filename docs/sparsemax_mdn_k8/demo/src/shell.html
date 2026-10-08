@@ -1,0 +1,526 @@
+<title>Trajectory Mixture Playground</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: canvas chiếm phần lớn, bảng điều khiển bên phải, xếp dọc khi hẹp */
+:root{
+  --bg:#f7f6f3; --surface:#fff; --surface-2:#eeece7; --fg:#1b1d21; --fg-dim:#5c6069; --rule:#dcd9d2;
+  --past:#1f77b4; --future:#d4620a; --gt:#6a6f78; --ok:#1f7a4d; --bad:#a32020; --grid:#e3e0d9;
+  --f-display:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141619; --surface:#1c1f24; --surface-2:#23272e; --fg:#e8e6e1; --fg-dim:#9aa0aa; --rule:#31363e;
+  --past:#58a6e0; --future:#f0883e; --gt:#848c98; --ok:#4bbf85; --bad:#e26a6a; --grid:#262b32;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#141619; --surface:#1c1f24; --surface-2:#23272e; --fg:#e8e6e1; --fg-dim:#9aa0aa; --rule:#31363e;
+  --past:#58a6e0; --future:#f0883e; --gt:#848c98; --ok:#4bbf85; --bad:#e26a6a; --grid:#262b32;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);line-height:1.55;margin:0;font-size:14px}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:24px 48px;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--f-display);font-size:clamp(1.5rem,4vw,2.2rem);margin:0;letter-spacing:-.02em;line-height:1.1}
+h2{font-family:var(--f-display);font-size:1.05rem;margin:0;letter-spacing:-.01em}
+p{margin:0}
+code{font-family:var(--f-mono);font-size:.85em}
+:not(pre)>code{background:var(--surface-2);padding:.08em .35em;border-radius:3px;border:1px solid var(--rule)}
+.lede{color:var(--fg-dim);max-width:70ch}
+.eyebrow{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-dim)}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media(min-width:960px){.main{grid-template-columns:minmax(0,1fr) 300px}}
+
+.stage{background:var(--surface);border:1px solid var(--rule);border-radius:8px;overflow:hidden;min-width:0;
+       display:flex;flex-direction:column}
+#cv{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;background:var(--surface)}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:9px 11px;border-top:1px solid var(--rule);
+     background:var(--surface-2);min-width:0}
+.bar.top{border-top:none;border-bottom:1px solid var(--rule)}
+
+button{font:inherit;font-size:.8rem;padding:5px 10px;border-radius:5px;border:1px solid var(--rule);
+       background:var(--surface);color:var(--fg);cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--past)}
+button[aria-pressed="true"]{background:var(--past);border-color:var(--past);color:#fff;font-weight:600}
+button.warn[aria-pressed="true"]{background:var(--future);border-color:var(--future)}
+button:focus-visible{outline:2px solid var(--past);outline-offset:2px}
+.lab{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-dim);
+     margin-right:2px;white-space:nowrap}
+input[type=range]{accent-color:var(--future);flex:1;min-width:100px}
+label.ck{display:flex;align-items:center;gap:5px;font-size:.8rem;white-space:nowrap;cursor:pointer}
+input[type=checkbox]{accent-color:var(--past)}
+
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:13px 14px;
+      display:flex;flex-direction:column;gap:9px;min-width:0}
+.pibars{display:flex;flex-direction:column;gap:5px;font-family:var(--f-mono);font-size:.72rem}
+.pirow{display:grid;grid-template-columns:18px minmax(0,1fr) 42px;gap:7px;align-items:center}
+.track{height:13px;background:var(--surface-2);border-radius:2px;overflow:hidden;border:1px solid var(--rule)}
+.fill{height:100%;background:var(--future);transition:width .12s}
+.fill.zero{background:transparent}
+.pirow.off{opacity:.42}
+.pirow.off .track{border-style:dashed}
+.kbox{display:flex;align-items:baseline;gap:8px;padding-top:2px;border-top:1px solid var(--rule);margin-top:3px}
+.kbox .v{font-family:var(--f-display);font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.kbox .t{font-size:.76rem;color:var(--fg-dim);min-width:0}
+.mt{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;font-size:.74rem;font-family:var(--f-mono)}
+.mt b{font-weight:600;font-variant-numeric:tabular-nums}
+.mt span{color:var(--fg-dim)}
+
+.note{border-left:3px solid var(--past);background:var(--surface);padding:10px 13px;border-radius:0 5px 5px 0;
+      font-size:.85rem;display:flex;flex-direction:column;gap:6px;min-width:0}
+.note.warn{border-left-color:var(--future)}
+.note.bad{border-left-color:var(--bad)}
+.note .nt{font-family:var(--f-mono);font-size:.67rem;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-dim)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.76rem;color:var(--fg-dim)}
+.legend i{display:inline-block;width:15px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@media(min-width:760px){.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+footer{color:var(--fg-dim);font-size:.78rem;border-top:1px solid var(--rule);padding-top:14px}
+#status{font-family:var(--f-mono);font-size:.72rem;color:var(--fg-dim);padding:3px 0}
+</style>
+
+<div class="wrap">
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span class="eyebrow">Mô hình thật · chạy trong trình duyệt · không có máy chủ</span>
+    <h1>Trajectory Mixture Playground</h1>
+    <p class="lede">Vẽ 3,2 giây quá khứ của một người đi bộ. Mô hình LSTM + MDN đã huấn luyện trên IMPTC chạy ngay tại đây và trả về một <strong>hỗn hợp Gaussian</strong> cho từng mốc trong 4,8 giây tương lai. Bật <strong>sparsemax</strong> để thấy các thành phần thừa bị đưa về <strong>đúng bằng 0</strong>.</p>
+  </div>
+
+  <div class="main">
+    <div class="stage">
+      <div class="bar top">
+        <span class="lab">Mẫu thật</span>
+        <span id="presets" style="display:contents"></span>
+        <span style="flex:1"></span>
+        <button id="clear">Tự vẽ</button>
+      </div>
+
+      <canvas id="cv" width="900" height="620"></canvas>
+
+      <div class="bar">
+        <span class="lab">Số thành phần</span>
+        <span id="ms" style="display:contents"></span>
+        <span style="width:10px"></span>
+        <span class="lab">Chuẩn hoá π</span>
+        <button data-norm="softmax" aria-pressed="true">softmax</button>
+        <button data-norm="sparsemax" class="warn" aria-pressed="false">sparsemax</button>
+        <span id="normhint" style="font-size:.72rem;color:var(--fg-dim)"></span>
+      </div>
+
+      <div class="bar">
+        <span class="lab">Mốc</span>
+        <input type="range" id="hz" min="0" max="47" value="47">
+        <span id="hzv" style="font-family:var(--f-mono);font-size:.78rem;min-width:52px">4,8 s</span>
+        <button id="play">▶ Chạy</button>
+        <label class="ck"><input type="checkbox" id="all" checked> Mọi mốc</label>
+        <label class="ck"><input type="checkbox" id="gt" checked> Sự thật</label>
+        <span class="lab" style="margin-left:4px">Vùng</span>
+        <button data-cl="1.510" aria-pressed="true">68 %</button>
+        <button data-cl="2.448" aria-pressed="false">95 %</button>
+      </div>
+
+      <div class="bar">
+        <span class="lab">Tốc độ đi bộ</span>
+        <input type="range" id="sp" min="0.2" max="2.6" step="0.05" value="1.40">
+        <span id="spv" style="font-family:var(--f-mono);font-size:.78rem;min-width:62px">1,40 m/s</span>
+        <span id="status"></span>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2>Trọng số π</h2>
+        <p style="font-size:.78rem;color:var(--fg-dim);margin:0" id="pihint">tại mốc 4,8 s</p>
+        <div class="pibars" id="pib"></div>
+        <div class="kbox"><span class="v" id="kval">—</span><span class="t" id="ktxt"></span></div>
+      </div>
+
+      <div class="card">
+        <h2 id="mname">Mô hình</h2>
+        <div class="mt" id="mmet"></div>
+        <p style="font-size:.73rem;color:var(--fg-dim);margin:0" id="mnote"></p>
+      </div>
+
+      <div class="card" id="kcard" hidden>
+        <h2>K trên toàn bộ validation</h2>
+        <div id="khist" style="display:flex;align-items:flex-end;gap:3px;height:62px"></div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.66rem;color:var(--fg-dim)">
+          <span>K=1</span><span>K=8</span></div>
+        <div class="mt" id="kmet"></div>
+        <p style="font-size:.72rem;color:var(--fg-dim);margin:0" id="knote"></p>
+      </div>
+
+      <div class="legend">
+        <span><i style="background:var(--past)"></i>quá khứ (32 bước)</span>
+        <span><i style="background:var(--future)"></i>elip dự báo</span>
+        <span><i style="background:var(--gt)"></i>sự thật</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cols2">
+    <div class="note">
+      <span class="nt">Cách dùng</span>
+      <p><strong>Kéo chuột</strong> trên khung để vẽ đường đi quá khứ — điểm cuối là <em>hiện tại</em>. Hoặc bấm một mẫu thật ở trên. Chuyển <strong>M = 1 ↔ 3</strong> để thấy vì sao một Gaussian là không đủ.</p>
+    </div>
+    <div class="note">
+      <span class="nt">Mô hình sai bao nhiêu là bình thường</span>
+      <p>Sai số ở mốc 4,8 s, đo trên <strong>toàn bộ 19 148 mẫu</strong> eval với M = 3 (trung vị, mode mạnh nhất):</p>
+      <p style="font-family:var(--f-mono);font-size:.78rem;line-height:1.75">
+        đứng yên <b>0,04 m</b> · đi thẳng <b>0,67 m</b> · rẽ nhẹ <b>1,3 m</b> · rẽ gắt <b>2,2–2,4 m</b><br>
+        <span style="color:var(--fg-dim)">tất cả: 0,88 m</span></p>
+      <p>Sáu nút đầu là mẫu <strong>sát trung vị</strong> của nhãn đó. Hai nút viền đứt là <strong>ca khó</strong> (phân vị trên 90 %), để trống cho thấy mô hình hỏng ở đâu.</p>
+      <p>⚠️ Mẫu <strong>Quay đầu</strong> nhìn dễ nhầm: người này đi lên tới <strong>y = +3,91 m</strong> ở giây 2,5 rồi <strong>quay lại</strong> tới <strong>y = −1,19 m</strong>. Nhưng cả cú quay chỉ rộng <strong>0,48 m</strong> ngang, nên đường đi và đường về gần như chồng khít. Xem các <strong>mốc 1s–4s</strong> trên đường nét đứt để thấy nó đi lên rồi tụt xuống.</p>
+    </div>
+
+    <div class="note warn">
+      <span class="nt">Phát hiện khi đo</span>
+      <p>Trên <strong>4 000 mẫu</strong> eval, tâm các mode trải ra theo <strong>hướng đi</strong> gấp <strong>3,4 lần</strong> so với trải ngang <em>(1,76 m so với 0,52 m)</em>. Hỗn hợp mà mô hình học được chủ yếu là <strong>“đi nhanh hay chậm”</strong>, không phải “rẽ trái hay phải”.</p>
+    </div>
+  </div>
+
+  <div class="note">
+      <span class="nt">Hai chế độ sparsemax — đừng nhầm</span>
+      <p><strong>SPARSEMAX K≤8</strong> là <strong>checkpoint đã huấn luyện thật</strong> của nhóm (<code>sparsemax_k8_v2_seed2024</code>, epoch 1961, <code>architecture: sparsemax_mdn_v1</code>). Trọng số tải từ HuggingFace, và bản dựng lại ở đây cho <strong>đúng 1 662 / 3 072 số 0</strong> giống hệt file dự đoán của repo.</p>
+      <p>Nút <strong>sparsemax</strong> khi đang chọn M = 1…8 thì khác: nó áp phép chiếu lên logit của mô hình <em>softmax</em>, chỉ để minh hoạ cơ chế. Cách đó cho K trung bình <strong>2,15</strong>; mô hình train thật được <strong>3,27</strong>.</p>
+    </div>
+
+  <footer>
+    Trọng số bóc trực tiếp từ <code>best.pt</code> của 5 run thật (M = 1, 2, 3, 5, 8; tổng 424 KB).
+    Forward pass viết lại bằng JavaScript và <strong>đã đối chiếu với file kết quả của repo</strong>: lệch lớn nhất <strong>15,7 mm</strong> trên µ và <strong>10,7 mm</strong> trên σ — do repo chạy GPU ở độ chính xác TF32.
+    Elip là đường mức giải tích của từng Gaussian, <strong>không</strong> phải vùng tin cậy Monte-Carlo mà <code>eval.py</code> dùng để tính S68 / S95.
+  </footer>
+</div>
+
+<script>
+/*__CORE__*/
+
+// ═══ trạng thái ═══
+let W=null, PRESETS=null, M='3', NORM='softmax', CL=1.510, HZ=47, SHOWALL=true, SHOWGT=true;
+let path=null, preset=null, drawing=false, timer=null, out=null;
+const NRM=()=>(W&&W.models[M].sparsemax)?'sparsemax':NORM;
+const isSP=()=>!!(W&&W.models[M].sparsemax);
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let SCALE=1, OX=0, OY=0;
+
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const W2S=(x,y)=>[OX+x*SCALE, OY-y*SCALE];
+const S2W=(px,py)=>[(px-OX)/SCALE, (OY-py)/SCALE];
+
+function layout(){
+  const w=cv.width, h=cv.height;
+  const xr=19, ytop=11, ybot=-7;          // khung thế giới nhìn thấy (mét)
+  SCALE=Math.min(w/xr, h/(ytop-ybot));
+  OX=w/2; OY=h-((0-ybot)*SCALE);
+}
+
+function fit(){
+  const r=cv.parentElement.getBoundingClientRect();
+  const w=Math.max(320,Math.round(r.width)), h=Math.round(w*0.69);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+  cv.style.height=h+'px';
+  layout(); draw();
+}
+
+// ═══ dựng đầu vào rồi chạy mô hình ═══
+function run(){
+  if(!W) return;
+  if(preset){ egoPast=preset.past; PHI=0; ORG=[0,0]; viewPast=preset.past; }
+  else if(path && path.length>1){
+    const sp=parseFloat(document.getElementById('sp').value);
+    const P=resampleBack(path, NSTEP, sp*DT);
+    const r=toEgo(P);
+    egoPast=r.ego; PHI=r.phi; ORG=r.origin; viewPast=P;   // HIEN THI dung cho nguoi dung ve
+  } else { out=null; viewPast=null; draw(); return; }
+  out=forward(W.models[M], buildInput(egoPast));
+  draw(); panel();
+}
+let egoPast=null, viewPast=null, PHI=0, ORG=[0,0];
+
+// ═══ vẽ ═══
+function draw(){
+  const w=cv.width,h=cv.height;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle=css('--surface'); ctx.fillRect(0,0,w,h);
+  const S=SCALE/ (window.devicePixelRatio>1?1:1);
+
+  // lưới 1 m
+  ctx.strokeStyle=css('--grid'); ctx.lineWidth=1;
+  for(let x=-10;x<=10;x++){ const [a,b]=W2S(x,-7),[c,d]=W2S(x,11);
+    ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke(); }
+  for(let y=-7;y<=11;y++){ const [a,b]=W2S(-10,y),[c,d]=W2S(10,y);
+    ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke(); }
+  // trục
+  ctx.strokeStyle=css('--rule'); ctx.lineWidth=1.5;
+  let p=W2S(-10,0),q=W2S(10,0); ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();
+  p=W2S(0,-7);q=W2S(0,11); ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();
+  ctx.fillStyle=css('--fg-dim'); ctx.font='500 '+(11*(cv.width/900))+'px "IBM Plex Mono",monospace';
+  if(preset){
+    const a1=W2S(0.35,10.3); ctx.fillText('+y  hướng đi',a1[0],a1[1]);
+    const a2=W2S(7.4,0.35); ctx.fillText('+x  phải',a2[0],a2[1]);
+    const a3=W2S(-9.3,0.35); ctx.fillText('trái',a3[0],a3[1]);
+  } else {
+    const a1=W2S(-9.3,10.3); ctx.fillText('khung bạn vẽ · mũi tên = hướng đi mô hình nhận ra',a1[0],a1[1]);
+  }
+
+  if(!out){
+    ctx.fillStyle=css('--fg-dim');
+    ctx.font='500 '+(15*(cv.width/900))+'px "IBM Plex Sans",sans-serif';
+    ctx.textAlign='center';
+    const c=W2S(0,5.2); ctx.fillText('Kéo chuột để vẽ đường đi — hoặc chọn một mẫu thật ở trên', c[0], c[1]);
+    ctx.textAlign='left'; return;
+  }
+
+  const K=W.models[M].K;
+  const steps = SHOWALL ? [7,15,23,31,39,47] : [HZ];
+  const lblAt=[];
+
+  // elip
+  for(const t of steps){
+    const comp=decode(out,K,t,NRM());
+    const frac=t/47;
+    for(const c of comp){
+      if(c.pi<=1e-4) continue;
+      const e=ellipse(c,CL);
+      const wp=toWorld([c.mx,c.my],PHI,ORG);
+      const [cx,cy]=W2S(wp[0],wp[1]);
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(-(e.ang+PHI));
+      ctx.beginPath(); ctx.ellipse(0,0,Math.max(e.rx*SCALE,0.6),Math.max(e.ry*SCALE,0.6),0,0,Math.PI*2);
+      ctx.fillStyle=css('--future'); ctx.globalAlpha=0.06+0.20*c.pi;
+      ctx.fill();
+      ctx.globalAlpha=0.30+0.65*c.pi; ctx.lineWidth=1+2.2*c.pi;
+      ctx.strokeStyle=css('--future'); ctx.setLineDash(SHOWALL&&t!==steps[steps.length-1]?[]:[]);
+      ctx.stroke(); ctx.restore(); ctx.globalAlpha=1;
+      // tâm
+      ctx.beginPath(); ctx.arc(cx,cy,1.6+2.4*c.pi,0,Math.PI*2);
+      ctx.fillStyle=css('--future'); ctx.globalAlpha=0.45+0.55*c.pi; ctx.fill(); ctx.globalAlpha=1;
+    }
+    if(SHOWALL){
+      const b=comp.reduce((x,y)=>y.pi>x.pi?y:x);
+      const wp=toWorld([b.mx,b.my],PHI,ORG), q=W2S(wp[0],wp[1]);
+      lblAt.push([q[0],q[1],((t+1)/10).toFixed(1).replace('.',',')+'s']);
+    }
+  }
+  if(lblAt.length){
+    ctx.font='600 '+(10.5*(cv.width/900))+'px "IBM Plex Mono",monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(const [a,b,t] of lblAt){
+      ctx.lineWidth=3; ctx.strokeStyle=css('--surface'); ctx.strokeText(t,a,b-11);
+      ctx.fillStyle=css('--future'); ctx.fillText(t,a,b-11);
+    }
+    ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  }
+
+  // sự thật — kèm mốc thời gian, nếu không thì đường đi và đường về chồng khít
+  if(SHOWGT && preset){
+    const F=preset.future.map(p=>toWorld(p,PHI,ORG));
+    ctx.strokeStyle=css('--gt'); ctx.lineWidth=2.2; ctx.setLineDash([6,5]);
+    ctx.beginPath();
+    F.forEach((p,i)=>{const [a,b]=W2S(p[0],p[1]); i?ctx.lineTo(a,b):ctx.moveTo(a,b);});
+    ctx.stroke(); ctx.setLineDash([]);
+    // mũi tên ở đoạn cuối
+    const p1=F[44],p2=F[47];
+    const an=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+    const [ex,ey]=W2S(p2[0],p2[1]), r=0.42*SCALE;
+    ctx.save(); ctx.translate(ex,ey); ctx.rotate(-an);
+    ctx.beginPath(); ctx.moveTo(r,0); ctx.lineTo(-r*0.55,r*0.45); ctx.lineTo(-r*0.55,-r*0.45);
+    ctx.closePath(); ctx.fillStyle=css('--gt'); ctx.fill(); ctx.restore();
+    // mốc mỗi 1 giây
+    ctx.font='600 '+(10.5*(cv.width/900))+'px "IBM Plex Mono",monospace';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    [9,19,29,39].forEach(t=>{
+      const [a,b]=W2S(F[t][0],F[t][1]);
+      ctx.beginPath(); ctx.arc(a,b,3.4,0,Math.PI*2);
+      ctx.fillStyle=css('--surface'); ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle=css('--gt'); ctx.stroke();
+      ctx.fillStyle=css('--gt'); ctx.fillText(((t+1)/10).toFixed(0)+'s', a+6, b);
+    });
+    ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  }
+
+  // quá khứ — vẽ đúng chỗ người dùng kéo chuột
+  if(viewPast){
+    ctx.strokeStyle=css('--past'); ctx.lineWidth=3; ctx.lineJoin='round';
+    ctx.beginPath();
+    viewPast.forEach((p,i)=>{const [a,b]=W2S(p[0],p[1]); i?ctx.lineTo(a,b):ctx.moveTo(a,b);});
+    ctx.stroke();
+    ctx.fillStyle=css('--past');
+    viewPast.forEach(p=>{const [a,b]=W2S(p[0],p[1]); ctx.beginPath();ctx.arc(a,b,2,0,Math.PI*2);ctx.fill();});
+    // mũi tên hướng đi tại hiện tại
+    const [ox,oy]=W2S(ORG[0],ORG[1]);
+    const hx=Math.cos(PHI+Math.PI/2), hy=Math.sin(PHI+Math.PI/2), L=1.4*SCALE;
+    ctx.strokeStyle=css('--past'); ctx.lineWidth=2; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(ox+hx*L,oy-hy*L); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(ox+hx*L,oy-hy*L);
+    ctx.lineTo(ox+hx*L-(hx*0.3+hy*0.18)*SCALE, oy-hy*L+(hy*0.3-hx*0.18)*SCALE);
+    ctx.lineTo(ox+hx*L-(hx*0.3-hy*0.18)*SCALE, oy-hy*L+(hy*0.3+hx*0.18)*SCALE);
+    ctx.closePath(); ctx.fillStyle=css('--past'); ctx.fill();
+    ctx.beginPath(); ctx.arc(ox,oy,6,0,Math.PI*2);
+    ctx.fillStyle=css('--surface'); ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle=css('--past'); ctx.stroke();
+  }
+}
+
+// ═══ bảng bên phải ═══
+function panel(){
+  const K=W.models[M].K;
+  const comp=out?decode(out,K,HZ,NRM()):[];
+  const box=document.getElementById('pib'); box.innerHTML='';
+  let nz=0;
+  comp.forEach((c,i)=>{
+    if(c.pi>0) nz++;
+    const row=document.createElement('div');
+    row.className='pirow'+(c.pi<=0?' off':'');
+    row.innerHTML='<span>'+(i+1)+'</span><span class="track"><span class="fill'+(c.pi<=0?' zero':'')+
+      '" style="width:'+(c.pi*100).toFixed(1)+'%"></span></span><span>'+c.pi.toFixed(3)+'</span>';
+    box.appendChild(row);
+  });
+  document.getElementById('kval').textContent = out?nz:'—';
+  document.getElementById('ktxt').innerHTML = NORM==='sparsemax'
+    ? 'thành phần có π &gt; 0 <br>trên tổng ' + K
+    : 'trên ' + K + ' — softmax <strong>không bao giờ</strong> cho π = 0';
+  document.getElementById('pihint').textContent='tại mốc '+((HZ+1)/10).toFixed(1).replace('.',',')+' s';
+
+  const mm=W.models[M], me=mm.metrics;
+  document.getElementById('mname').textContent='M = '+mm.K+' · '+mm.params.toLocaleString('vi')+' tham số';
+  document.getElementById('mmet').innerHTML=
+    '<span>test NLL</span><b>'+me.nll.toFixed(3).replace('.',',')+'</b>'+
+    '<span>R_avg</span><b>'+me.ravg.toFixed(2).replace('.',',')+' %</b>'+
+    '<span>R_min</span><b>'+me.rmin.toFixed(2).replace('.',',')+' %</b>'+
+    '<span>S68</span><b>'+me.s68.toFixed(3).replace('.',',')+'</b>'+
+    '<span>minADE</span><b>'+me.ade.toFixed(3).replace('.',',')+' m</b>'+
+    '<span>minFDE</span><b>'+me.fde.toFixed(3).replace('.',',')+' m</b>';
+  document.getElementById('mnote').textContent = mm.sparsemax
+    ? 'run ' + mm.run + ' · epoch ' + mm.epoch + ' · test đầy đủ 56 694 mẫu, seed 2024'
+    : 'checkpoint best, epoch ' + mm.epoch + ' · chỉ số đo trên tập test, seed 2024';
+
+  const kc=document.getElementById('kcard');
+  kc.hidden = !mm.sparsemax;
+  if(mm.sparsemax && !kc.dataset.done){
+    const u=W.kusage, tot=u.hist.reduce((a,b)=>a+b,0), mx=Math.max(...u.hist);
+    document.getElementById('khist').innerHTML=u.hist.map((v,i)=>
+      '<div title="K='+(i+1)+': '+(100*v/tot).toFixed(1)+'%" style="flex:1;min-width:0;height:'+
+      Math.max(2,Math.round(100*v/mx))+'%;background:var(--future);opacity:'+(0.35+0.65*v/mx)+';border-radius:2px 2px 0 0"></div>').join('');
+    document.getElementById('kmet').innerHTML=
+      '<span>K trung bình</span><b>'+u.mean.toFixed(2).replace('.',',')+'</b>'+
+      '<span>độ lệch chuẩn</span><b>'+u.std.toFixed(2).replace('.',',')+'</b>'+
+      '<span>trên test</span><b>'+u.test_mean.toFixed(2).replace('.',',')+'</b>'+
+      '<span>thành phần chết</span><b>'+u.dead+'</b>';
+    document.getElementById('knote').innerHTML='Dùng hết 8 thành phần chỉ <b>'+(100*u.full_frac).toFixed(3).replace('.',',')+
+      ' %</b> số trường hợp. K tăng dần theo mốc: <b>'+u.per_step[0].toFixed(2).replace('.',',')+
+      '</b> ở 0,1 s → <b>'+u.per_step[47].toFixed(2).replace('.',',')+'</b> ở 4,8 s.';
+    kc.dataset.done='1';
+  }
+}
+
+// ═══ tương tác ═══
+function pos(e){
+  const r=cv.getBoundingClientRect();
+  const sx=cv.width/r.width, sy=cv.height/r.height;
+  return S2W((e.clientX-r.left)*sx,(e.clientY-r.top)*sy);
+}
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  drawing=true; preset=null; path=[pos(e)];
+  document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  document.getElementById('status').textContent='đang vẽ…';
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drawing) return;
+  const p=pos(e), last=path[path.length-1];
+  if(Math.hypot(p[0]-last[0],p[1]-last[1])>0.06){ path.push(p); run(); }
+});
+cv.addEventListener('pointerup',()=>{
+  drawing=false;
+  document.getElementById('status').textContent = path&&path.length>1 ? 'đường tự vẽ' : '';
+  run();
+});
+
+function mkbtn(txt,on){const b=document.createElement('button');b.textContent=txt;b.onclick=on;return b;}
+
+function selPreset(i,btn){
+  preset=PRESETS[i]; path=null;
+  document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  btn.setAttribute('aria-pressed','true');
+  document.getElementById('status').innerHTML = preset.label+' · v̄='+preset.avg_v.toFixed(2).replace('.',',')+
+    ' m/s · sai <b>'+preset.err.toFixed(2).replace('.',',')+' m</b> ở 4,8 s'+
+    (preset.kind==='hard'?' — <b style="color:var(--bad)">ca khó, phân vị &gt;90 %</b>':' — điển hình (sát trung vị nhãn)');
+  run();
+}
+
+document.getElementById('clear').onclick=()=>{
+  preset=null;path=null;out=null;viewPast=null;egoPast=null;PHI=0;ORG=[0,0];
+  document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  document.getElementById('status').textContent='';
+  document.getElementById('pib').innerHTML='';
+  document.getElementById('kval').textContent='—';
+  draw();
+};
+document.querySelectorAll('[data-norm]').forEach(b=>b.onclick=()=>{
+  if(isSP()) return;
+  NORM=b.dataset.norm;
+  document.querySelectorAll('[data-norm]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  draw(); panel();
+});
+function syncNorm(){
+  const sp=isSP();
+  document.querySelectorAll('[data-norm]').forEach(x=>{
+    x.disabled=sp; x.style.opacity=sp?0.45:1; x.style.cursor=sp?'not-allowed':'pointer';
+    x.setAttribute('aria-pressed',String(sp ? x.dataset.norm==='sparsemax' : x.dataset.norm===NORM));
+  });
+  document.getElementById('normhint').textContent = sp ? 'khoá — mô hình này train bằng sparsemax' : '';
+}
+document.querySelectorAll('[data-cl]').forEach(b=>b.onclick=()=>{
+  CL=parseFloat(b.dataset.cl);
+  document.querySelectorAll('[data-cl]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  draw();
+});
+const hz=document.getElementById('hz');
+hz.oninput=()=>{ HZ=+hz.value;
+  document.getElementById('hzv').textContent=((HZ+1)/10).toFixed(1).replace('.',',')+' s';
+  draw(); panel(); };
+document.getElementById('all').onchange=e=>{SHOWALL=e.target.checked;draw();};
+document.getElementById('gt').onchange=e=>{SHOWGT=e.target.checked;draw();};
+document.getElementById('sp').oninput=e=>{
+  document.getElementById('spv').textContent=parseFloat(e.target.value).toFixed(2).replace('.',',')+' m/s';
+  if(path) run(); };
+document.getElementById('play').onclick=function(){
+  if(timer){clearInterval(timer);timer=null;this.textContent='▶ Chạy';return;}
+  this.textContent='⏸ Dừng';
+  document.getElementById('all').checked=false; SHOWALL=false;
+  timer=setInterval(()=>{ HZ=(HZ+1)%48; hz.value=HZ;
+    document.getElementById('hzv').textContent=((HZ+1)/10).toFixed(1).replace('.',',')+' s';
+    draw(); panel(); },70);
+};
+window.addEventListener('resize',fit);
+
+// ═══ nạp ═══
+Promise.all([fetch('weights.json').then(r=>r.json()),fetch('presets.json').then(r=>r.json())])
+.then(([w,p])=>{
+  W=w; PRESETS=p;
+  const ps=document.getElementById('presets');
+  p.forEach((x,i)=>{const b=mkbtn(x.name,()=>selPreset(i,b));
+    if(x.kind==='hard') b.style.borderStyle='dashed';
+    b.title=(x.kind==='hard'?'Ca khó — ':'Điển hình — ')+'sai '+x.err+' m ở 4,8 s'; ps.appendChild(b);});
+  const ms=document.getElementById('ms');
+  ['1','2','3','5','8','sp'].forEach(k=>{
+    const b=mkbtn(k==='sp'?'SPARSEMAX K≤8':'M='+k,()=>{ M=k;
+      ms.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+      syncNorm(); run(); });
+    if(k==='sp') b.className='warn';
+    b.setAttribute('aria-pressed',String(k===M)); ms.appendChild(b);
+  });
+  syncNorm();
+  fit();
+  selPreset(0, ps.firstChild);
+})
+.catch(e=>{document.getElementById('status').textContent='Lỗi nạp dữ liệu: '+e.message;});
+</script>

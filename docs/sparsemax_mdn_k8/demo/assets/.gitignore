@@ -1,0 +1,5 @@
+# Bộ nhớ đệm tải từ HuggingFace (checkpoint sparsemax, ~2,5 MB) — sinh lại được
+_hf/
+
+# Tham chiếu cho verify.js — sinh lại bằng tools/make_presets.py
+_ref_*.json
